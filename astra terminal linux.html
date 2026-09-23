@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astra Terminal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#012456;color:#fff;font-family:'Cascadia Code','Consolas',monospace;height:100vh;overflow:hidden}
+#boot-screen{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+.boot-logo{font-size:18px;color:#0078D4;margin-bottom:30px;letter-spacing:3px;text-align:center;font-weight:bold}
+.boot-logo pre{font-size:10px;line-height:1.1;color:#0078D4;text-align:left;margin:0 auto;width:fit-content}
+.boot-bar{width:300px;height:4px;background:#1a1a2a;border-radius:2px;overflow:hidden;margin:10px 0}
+.boot-fill{height:100%;background:linear-gradient(90deg,#0078D4,#16c60c);width:0;transition:width .3s;border-radius:2px}
+.boot-pct{font-size:12px;color:#666;margin-bottom:16px}
+.boot-log{width:300px;height:120px;overflow-y:auto;font-size:11px;color:#555;line-height:1.5}
+.boot-log div{animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a1a 0%,#0d1a2e 50%,#0a0a1a 100%);z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;transition:opacity .4s}
+.login-box{background:rgba(10,20,40,.95);border:1px solid rgba(0,120,212,.4);border-radius:16px;padding:40px 50px;text-align:center;box-shadow:0 8px 40px rgba(0,120,212,.15)}
+.login-icon{font-size:48px;margin-bottom:16px}
+.login-title{color:#0078D4;font-size:22px;font-weight:bold;margin-bottom:6px;letter-spacing:1px}
+.login-sub{color:#666;font-size:13px;margin-bottom:24px}
+.login-input{background:rgba(0,0,0,.4);border:2px solid rgba(0,120,212,.3);color:#fff;font-family:monospace;font-size:16px;padding:12px 20px;border-radius:8px;outline:none;text-align:center;width:260px;letter-spacing:3px;transition:border-color .2s}
+.login-input:focus{border-color:#0078D4}
+.login-btn{background:#0078D4;color:#fff;border:none;font-family:monospace;font-size:14px;font-weight:bold;padding:12px 40px;border-radius:8px;cursor:pointer;margin-top:16px;transition:.15s}
+.login-btn:hover{background:#1a8de8}
+.login-btn:active{transform:scale(.95)}
+.login-err{color:#e74856;font-size:13px;margin-top:12px;height:18px;animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.login-hint{color:#444;font-size:11px;margin-top:20px}
+#main{display:none;flex-direction:column;height:100vh}
+body.mod{background:#1a0033;color:#cc88ff}
+body.evilmod{background:#0a0000;color:#ff0033}
+body.codemod{background:#0a0a12;color:#dcdcdc}
+body.promod{background:#001a0a;color:#00ff88}
+body.aimod{background:#001a2e;color:#00ccff}
+body.vpnmod{background:#0d0a00;color:#ff8800}
+#bg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:4rem;color:rgba(255,255,255,.04);font-weight:bold;pointer-events:none;z-index:0;white-space:nowrap}
+#holo{position:fixed;top:10px;right:10px;width:200px;border:1px solid rgba(0,120,212,.4);border-radius:6px;background:rgba(0,20,50,.92);font-size:11px;z-index:50;pointer-events:none}
+body.mod #holo{border-color:rgba(204,136,255,.4);background:rgba(20,0,40,.9)}
+body.evilmod #holo{border-color:rgba(255,0,51,.4);background:rgba(15,0,0,.9)}
+body.codemod #holo{border-color:rgba(0,122,204,.4);background:rgba(10,10,18,.9)}
+body.promod #holo{border-color:rgba(0,255,136,.4);background:rgba(0,20,10,.9)}
+body.aimod #holo{border-color:rgba(0,204,255,.4);background:rgba(0,20,40,.9)}
+body.vpnmod #holo{border-color:rgba(255,136,0,.4);background:rgba(20,15,0,.9)}
+.holo-h{text-align:center;font-weight:bold;padding:4px;border-bottom:1px solid rgba(0,120,212,.25)}
+.holo-m{height:120px;overflow:hidden;position:relative}
+.hc{position:absolute;width:12px;text-align:center;animation:drp linear infinite}
+@keyframes drp{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+.hd{background:linear-gradient(180deg,#00ff00,#00ff88);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold}
+body.evilmod .hd{background:linear-gradient(180deg,#ff0000,#ff8800,#ffff00,#00ff00,#0088ff,#8800ff,#ff0088);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+body.codemod .hd{background:linear-gradient(180deg,#007acc,#569cd6,#4ec9b0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+body.promod .hd{background:linear-gradient(180deg,#00ff88,#00ff00,#00ffff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+body.aimod .hd{background:linear-gradient(180deg,#00ccff,#0088ff,#00ffff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+body.vpnmod .hd{background:linear-gradient(180deg,#ff8800,#ffaa00,#ffdd00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.holo-s{display:flex;justify-content:space-around;padding:4px;border-top:1px solid rgba(0,120,212,.25)}
+.blk{animation:blk 1.5s infinite}
+@keyframes blk{0%,49%{opacity:1}50%,100%{opacity:.3}}
+.holo-t{padding:3px;border-top:1px solid rgba(0,120,212,.25)}
+.holo-r{display:flex;justify-content:space-between;padding:1px 8px}
+.holo-r+.holo-r{border-top:1px dotted rgba(255,255,255,.08)}
+#term{flex:1;overflow-y:auto;padding:10px;z-index:10}
+.ln{margin-bottom:1px;white-space:pre-wrap;word-break:break-word}
+.ok{color:#16c60c}.err{color:#e74856}.inf{color:#61d6d6}.wrn{color:#f9f1a5}
+body.evilmod .ok{color:#f03}body.evilmod .inf{color:#f64}
+body.codemod .ok{color:#4ec9b0}body.codemod .inf{color:#569cd6}body.codemod .wrn{color:#dcdcaa}
+body.promod .ok{color:#00ff88}body.promod .inf{color:#00ffff}body.promod .wrn{color:#88ff00}
+body.aimod .ok{color:#00ccff}body.aimod .inf{color:#00ddff}body.aimod .wrn{color:#88ddff}
+body.vpnmod .ok{color:#ffaa00}body.vpnmod .inf{color:#ffdd44}body.vpnmod .wrn{color:#ffcc00}
+.asc{color:#61d6d6;line-height:1.1}body.evilmod .asc{color:#f03}body.codemod .asc{color:#569cd6}body.promod .asc{color:#00ff88}body.aimod .asc{color:#00ccff}body.vpnmod .asc{color:#ff8800}
+.cre{color:rgba(255,255,255,.3);font-size:11px;font-style:italic}
+.urd{color:#e74856;font-weight:bold}
+.cmp{color:#007acc;font-weight:bold}
+.aim{color:#00ccff;font-weight:bold}
+.vpm{color:#ff8800;font-weight:bold}
+#bar{display:flex;gap:6px;padding:8px;background:#001e50;border-top:2px solid #0078D4;z-index:20}
+body.mod #bar{background:#0d001a;border-color:#c8f}
+body.evilmod #bar{background:#1a0000;border-color:#f03}
+body.codemod #bar{background:#0a0a12;border-color:#007acc}
+body.promod #bar{background:#001a0a;border-color:#00ff88}
+body.aimod #bar{background:#001525;border-color:#00ccff}
+body.vpnmod #bar{background:#0d0a00;border-color:#ff8800}
+#bar .pr{font-weight:bold;white-space:nowrap;padding-top:4px}
+#bar input{flex:1;background:#001a3a;border:1px solid #0078D4;color:inherit;font-family:monospace;padding:5px;outline:none}
+body.codemod #bar input{background:#1a1a2a;border-color:#007acc}
+body.promod #bar input{background:#00150a;border-color:#00ff88}
+body.aimod #bar input{background:#001525;border-color:#00ccff}
+body.vpnmod #bar input{background:#1a1500;border-color:#ff8800}
+#send{background:#0078D4;color:#fff;border:none;font-family:monospace;font-weight:bold;padding:5px 16px;cursor:pointer}
+#upd{background:#16c60c;color:#000;border:none;font-family:monospace;font-weight:bold;padding:5px 16px;cursor:pointer}
+body.codemod #send{background:#007acc}body.codemod #upd{background:#007acc;color:#fff}
+body.promod #send{background:#00ff88;color:#000}body.promod #upd{background:#00ff88;color:#000}
+body.aimod #send{background:#00ccff;color:#000}body.aimod #upd{background:#00ccff;color:#000}
+body.vpnmod #send{background:#ff8800;color:#000}body.vpnmod #upd{background:#ff8800;color:#000}
+#send:active,#upd:active{transform:scale(.95)}
+#bsod{display:none;position:fixed;inset:0;background:#0078D7;color:#fff;z-index:9999;padding:10% 12%;flex-direction:column;font-family:'Segoe UI',sans-serif}
+#bsod.on{display:flex}
+#al{position:fixed;inset:0;z-index:100;pointer-events:none}
+.aw{position:absolute;background:#0a0a1a;border:1px solid rgba(0,120,212,.4);border-radius:8px;width:500px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden}
+body.codemod .aw{border-color:rgba(0,122,204,.4);background:#1e1e1e}
+body.promod .aw{border-color:rgba(0,255,136,.4);background:#001a0a}
+body.aimod .aw{border-color:rgba(0,204,255,.4);background:#001525}
+body.vpnmod .aw{border-color:rgba(255,136,0,.4);background:#1a1500}
+.ab{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:rgba(0,120,212,.1);cursor:move;font-weight:bold;font-size:13px}
+body.codemod .ab{background:rgba(0,122,204,.1)}
+body.promod .ab{background:rgba(0,255,136,.1)}
+body.aimod .ab{background:rgba(0,204,255,.1)}
+body.vpnmod .ab{background:rgba(255,136,0,.1)}
+.ax{background:none;border:none;color:inherit;font-size:16px;cursor:pointer;opacity:.6;padding:0 4px}
+.ax:hover{opacity:1;color:#e74856}
+.abd{padding:0;overflow-y:auto;flex:1;font-size:12px;line-height:1.5}
+.bt{background:rgba(0,120,212,.15);border:1px solid rgba(0,120,212,.4);color:inherit;font-family:monospace;padding:6px 14px;border-radius:3px;cursor:pointer;font-size:12px;font-weight:bold;transition:.12s}
+.bt:hover{background:rgba(0,120,212,.25)}
+body.codemod .bt{background:rgba(0,122,204,.15);border-color:rgba(0,122,204,.4)}
+body.promod .bt{background:rgba(0,255,136,.15);border-color:rgba(0,255,136,.4)}
+body.aimod .bt{background:rgba(0,204,255,.15);border-color:rgba(0,204,255,.4)}
+body.vpnmod .bt{background:rgba(255,136,0,.15);border-color:rgba(255,136,0,.4)}
+.vs-root{display:flex;height:100%;background:#1e1e1e;color:#ccc;font-family:'Cascadia Code','Consolas',monospace;font-size:13px}
+.vs-act{width:48px;background:#333;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px}
+.vs-act-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;font-size:18px;opacity:.6;transition:.12s}
+.vs-act-icon:hover{opacity:1}
+.vs-act-icon.active{opacity:1;background:rgba(0,122,204,.2);border-left:2px solid #007acc}
+.vs-side{width:220px;background:#252526;border-right:1px solid #3e3e42;overflow-y:auto}
+.vs-side-head{padding:8px 12px;font-size:11px;font-weight:bold;color:#bbb;text-transform:uppercase}
+.vs-tree-item{padding:3px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.vs-tree-item:hover{background:#2a2d2e}
+.vs-tree-item.active{background:#37373d}
+.vs-tree-folder{color:#dcb67a}
+.vs-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.vs-tabs{display:flex;background:#2d2d2d;border-bottom:1px solid #3e3e42;height:35px;overflow-x:auto}
+.vs-tab{display:flex;align-items:center;gap:6px;padding:0 14px;height:35px;cursor:pointer;font-size:13px;background:#2d2d2d;border-right:1px solid #3e3e42;white-space:nowrap}
+.vs-tab:hover{background:#252526}
+.vs-tab.active{background:#1e1e1e;border-top:2px solid #007acc}
+.vs-tab .x{opacity:.4;font-size:14px;margin-left:4px}
+.vs-tab .x:hover{opacity:1;color:#f85149}
+.vs-editor{flex:1;overflow:auto;display:flex}
+.vs-gutter{padding:0 12px;color:#858585;text-align:right;font-size:13px;line-height:1.6;user-select:none;min-width:40px}
+.vs-code{flex:1;padding:0 16px;font-size:13px;line-height:1.6;white-space:pre}
+.vs-code .kw{color:#569cd6}.vs-code .str{color:#ce9178}.vs-code .num{color:#b5cea8}.vs-code .com{color:#6a9955}
+.vs-code .fn{color:#dcdcaa}.vs-code .var{color:#9cdcfe}.vs-code .type{color:#4ec9b0}
+.vs-status{height:22px;background:#007acc;color:#fff;display:flex;align-items:center;padding:0 12px;font-size:12px;gap:16px}
+.vs-panel{height:120px;background:#1e1e1e;border-top:1px solid #3e3e42;display:flex;flex-direction:column}
+.vs-panel-tabs{display:flex;background:#252526;height:28px;border-bottom:1px solid #3e3e42}
+.vs-panel-tab{padding:4px 14px;cursor:pointer;font-size:12px;color:#888;border-bottom:2px solid transparent}
+.vs-panel-tab.active{color:#ccc;border-bottom-color:#007acc}
+.vs-panel-body{flex:1;overflow-y:auto;padding:8px 12px;font-size:12px;color:#ccc;line-height:1.6}
+.vs-panel-body .pl-err{color:#f85149}.vs-panel-body .pl-inf{color:#569cd6}
+.vs-panel-body .pl-wrn{color:#d29922}
+.vst-root{background:#1a1520;color:#e0d0f0;font-family:'Segoe UI',sans-serif;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.vst-top{background:#221a2e;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #3a2a4a}
+.vst-top-title{font-size:14px;font-weight:bold;color:#b388ff;letter-spacing:1px}
+.vst-top-led{width:10px;height:10px;border-radius:50%;background:#3a2a4a;transition:.3s}
+.vst-top-led.on{background:#4caf50;box-shadow:0 0 8px #4caf50}
+.vst-body{flex:1;display:flex;overflow:hidden}
+.vst-left{width:180px;background:#221a2e;padding:12px;overflow-y:auto;border-right:1px solid #3a2a4a}
+.vst-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.vst-wave{background:#0d0a14;border:1px solid #3a2a4a;margin:12px;border-radius:4px;position:relative;height:120px;overflow:hidden;flex-shrink:0}
+.vst-wave canvas{width:100%;height:100%;display:block}
+.vst-modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:0 12px;overflow-y:auto;flex:1}
+.vst-mod{background:#2a1f3d;border:1px solid #3a2a4a;border-radius:8px;padding:8px;text-align:center}
+.vst-mod-title{font-size:10px;color:#b388ff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold}
+.vst-knob-wrap{position:relative;width:64px;height:64px;margin:0 auto 4px}
+.vst-knob{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#5a4a6a,#2a1f3d);border:2px solid #4a3a5a;cursor:pointer;position:absolute;left:5px;top:5px;transition:transform .08s}
+.vst-knob:after{content:'';position:absolute;top:3px;left:50%;width:3px;height:12px;background:#b388ff;border-radius:2px;transform:translateX(-50%)}
+.vst-knob-val{font-size:10px;color:#e0d0f0}
+.vst-pads{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px 12px;flex-shrink:0}
+.vst-pad{height:40px;border-radius:6px;background:#2a1f3d;border:2px solid #4a3a5a;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#b388ff;font-weight:bold;transition:.08s}
+.vst-pad:active,.vst-pad.on{background:#b388ff;color:#1a1520}
+.vst-presets{background:#221a2e;padding:8px 12px;border-top:1px solid #3a2a4a;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.vst-presets select{background:#1a1520;color:#e0d0f0;border:1px solid #4a3a5a;border-radius:4px;padding:4px 8px;font-size:12px;outline:none}
+.vst-btn{background:#4a3a5a;border:none;color:#e0d0f0;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;transition:.12s}
+.vst-btn:hover{background:#5a4a6a}
+.vst-btn:active{transform:scale(.95)}
+.vst-list-item{padding:5px 8px;cursor:pointer;font-size:11px;border-radius:4px;color:#e0d0f0}
+.vst-list-item:hover{background:#2a1f3d}
+.vst-list-item.active{background:#3a2a5a;color:#b388ff}
+.vst-list-title{font-size:9px;color:#7a6a8a;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px;font-weight:bold}
+.ai-root{background:#001525;color:#00ccff;font-family:'Cascadia Code','Consolas',monospace;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.ai-top{background:#002040;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #00ccff44}
+.ai-top-title{font-size:14px;font-weight:bold;color:#00ccff;letter-spacing:2px}
+.ai-body{flex:1;overflow-y:auto;padding:16px}
+.ai-msg{margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:90%;line-height:1.6;font-size:13px}
+.ai-msg-user{background:#003366;margin-left:40px;text-align:right}
+.ai-msg-bot{background:#002244;margin-right:40px;border-left:3px solid #00ccff}
+.ai-thinking{display:inline-block;animation:dots 1.5s infinite}
+@keyframes dots{0%,20%{opacity:.2}50%{opacity:.8}80%,100%{opacity:.2}}
+.ai-input-bar{display:flex;gap:8px;padding:10px;background:#002040;border-top:1px solid #00ccff44}
+.ai-input{flex:1;background:#001020;border:1px solid #00ccff66;color:#00ccff;font-family:monospace;padding:8px 12px;border-radius:6px;outline:none;font-size:13px}
+.ai-input:focus{border-color:#00ccff}
+.ai-send{background:#00ccff;color:#000;border:none;font-family:monospace;font-weight:bold;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px}
+.ai-send:active{transform:scale(.95)}
+.vpn-root{background:#0d0a00;color:#ff8800;font-family:'Cascadia Code','Consolas',monospace;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.vpn-top{background:#1a1500;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ff880044}
+.vpn-top-title{font-size:14px;font-weight:bold;color:#ff8800;letter-spacing:2px}
+.vpn-body{flex:1;overflow-y:auto;padding:16px}
+.vpn-server{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px;border:1px solid #ff880033;border-radius:6px;background:#1a1500;cursor:pointer;transition:.12s}
+.vpn-server:hover{background:#2a2000;border-color:#ff880066}
+.vpn-server.active{border-color:#ff8800;background:#2a2000}
+.vpn-server-name{font-size:13px;font-weight:bold}
+.vpn-server-info{font-size:11px;color:#ffaa44}
+.vpn-server-ping{font-size:12px;color:#ffdd00;font-weight:bold}
+.vpn-status-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#1a1500;border-top:1px solid #ff880044}
+.vpn-led{width:10px;height:10px;border-radius:50%;background:#ff3300;transition:.3s}
+.vpn-led.on{background:#44ff00;box-shadow:0 0 8px #44ff00}
+.vpn-status-text{font-size:12px;flex:1}
+.vpn-btn{background:#ff8800;color:#000;border:none;font-family:monospace;font-weight:bold;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:12px;transition:.12s}
+.vpn-btn:hover{background:#ffaa00}
+.vpn-btn:active{transform:scale(.95)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#3e3e42;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+<div class="boot-logo"><pre>
+    ___   ___      ___
+   / _ | / __\___ / _|
+  / __ |/ /__/ -_) _|
+ /_/ |_\___/\__/_|
+</pre>
+ASTRA OS v2.5</div>
+<div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
+<div class="boot-pct" id="boot-pct">0%</div>
+<div class="boot-log" id="boot-log"></div>
+</div>
+
+<div id="login-screen">
+<div class="login-box">
+<div class="login-icon">key</div>
+<div class="login-title">ASTRA TERMINAL</div>
+<div class="login-sub">Enter password to access system</div>
+<input type="password" class="login-input" id="pwd" placeholder="••••••••" autocomplete="off">
+<br>
+<button class="login-btn" onclick="tryLogin()">LOGIN</button>
+<div class="login-err" id="pwd-err"></div>
+<div class="login-hint">Astra Terminal v2.5 — Franchuk Yaroslav</div>
+</div>
+</div>
+
+<div id="main">
+<div id="bg">ASTRA TERMINAL</div>
+<div id="holo">
+<div class="holo-h">ASTRA SYS</div>
+<div class="holo-m" id="hm"></div>
+<div class="holo-s"><span class="blk">ONLINE</span><span>v2.5</span><span class="blk">NET</span></div>
+<div class="holo-t">
+<div class="holo-r"><span>KILL</span><span style="color:#e74856" id="h-k">OFF</span></div>
+<div class="holo-r"><span>LANG</span><span style="color:#16c60c" id="h-lang">RU</span></div>
+<div class="holo-r"><span id="h-l">ASTRA OS</span><span style="color:#0078D4" id="h-m">ON</span></div>
+</div>
+</div>
+<div id="bsod"><div style="font-size:100px">:(</div><div style="font-size:24px;max-width:650px;margin-top:16px">На вашем устройстве возникла проблема, и его необходимо перезапустить.</div><div id="bp" style="margin-top:20px">0%</div><div style="margin-top:20px;font-size:13px">https://astra.com/stopcode<br>CRITICAL_PROCESS_DIED</div></div>
+<div id="al"></div>
+<div id="term"></div>
+<div id="bar">
+<span class="pr" id="pr">[astra@mobile ~]$</span>
+<input id="ci" autocomplete="off" placeholder="...">
+<button id="send" onclick="snd()">SEND</button>
+<button id="upd" onclick="document.getElementById('upf').click()">UPDATE</button>
+<input type="file" id="upf" style="display:none" onchange="doUpdate(this)">
+</div>
+</div>
+
+<script>
+// ===== BOOT =====
+(function(){
+  var fill=document.getElementById('boot-fill');
+  var pct=document.getElementById('boot-pct');
+  var log=document.getElementById('boot-log');
+  var msgs=[
+    'Initializing kernel 6.1.0-astra...','Loading device drivers...',
+    'Mounting filesystem /dev/mmcblk0p2...','Starting network services...',
+    'Loading Astra Terminal v2.5...','Checking security module...',
+    'Loading EvilMod module...','Loading CreatorMode module...',
+    'Loading ProMode module...','Loading AI Mode module...',
+    'Loading VPN Mode module...','System ready.'
+  ];
+  var i=0,prog=0;
+  var iv=setInterval(function(){
+    if(i>=msgs.length){
+      clearInterval(iv);
+      setTimeout(function(){
+        var s=document.getElementById('boot-screen');
+        s.style.opacity='0';
+        setTimeout(function(){
+          s.style.display='none';
+          var l=document.getElementById('login-screen');
+          l.style.display='flex';
+          document.getElementById('pwd').focus();
+        },500);
+      },300);
+      return;
+    }
+    log.innerHTML+='<div>'+msgs[i]+'</div>';
+    log.scrollTop=log.scrollHeight;
+    prog=Math.round((i+1)/msgs.length*100);
+    fill.style.width=prog+'%';
+    pct.textContent=prog+'%';
+    i++;
+  },300);
+})();
+
+// ===== LOGIN =====
+function tryLogin(){
+  var v=document.getElementById('pwd').value;
+  var e=document.getElementById('pwd-err');
+  if(v==='key2134'){
+    e.textContent='';
+    var l=document.getElementById('login-screen');
+    l.style.opacity='0';
+    setTimeout(function(){
+      l.style.display='none';
+      startTerminal();
+    },400);
+  }else{
+    e.textContent='ACCESS DENIED: Wrong password';
+    document.getElementById('pwd').value='';
+    document.getElementById('pwd').focus();
+  }
+}
+document.getElementById('pwd').addEventListener('keydown',function(e){
+  if(e.key==='Enter')tryLogin();
+});
+
+// ===== TERMINAL VARS =====
+var T,CI,AL;
+var hist=[],hi=-1,cwd='~',killed=false;
+var mA=false,eA=false,cA=false,pA=false,aA=false,vA=false,wc=0;
+var lang='ru',curVer='2.5';
+var VST_WI=null,PM_WI=null,PMUSIC=null;
+var VS_TABS=[],VS_ACTIVE=null;
+var VST_K={vol:65,gain:40,filter:72,rez:30,atk:10,dec:50,sus:60,rel:40};
+var vpnConnected=false,vpnServer='none',vpnPing=0;
+var VPN_SERVERS=[
+  {name:'Netherlands',code:'NL',ip:'185.107.56.1',ping:12,load:23},
+  {name:'Germany',code:'DE',ip:'193.176.84.2',ping:18,load:41},
+  {name:'USA - New York',code:'US',ip:'104.207.144.3',ping:89,load:55},
+  {name:'Japan',code:'JP',ip:'133.18.201.4',ping:156,load:30},
+  {name:'Singapore',code:'SG',ip:'165.22.85.5',ping:201,load:18},
+  {name:'UK - London',code:'UK',ip:'51.89.20.6',ping:25,load:67},
+  {name:'France',code:'FR',ip:'51.158.144.7',ping:22,load:35},
+  {name:'Sweden',code:'SE',ip:'194.47.206.8',ping:28,load:12}
+];
+var files={'~':['Documents','Downloads','README.txt','.bashrc','config.cfg'],'~/Documents':['notes.txt','report.pdf'],'~/Downloads':['app.deb','file.zip']};
+var WC={'0':'#000','1':'#000080','2':'#008000','3':'#008080','4':'#800000','5':'#800080','6':'#808000','7':'#c0c0c0','8':'#808080','9':'#0000ff','A':'#00ff00','B':'#00ffff','C':'#ff0000','D':'#ff00ff','E':'#ffff00','F':'#ffffff'};
+var WN={'0':'Black','1':'Blue','2':'Green','3':'Aqua','4':'Red','5':'Purple','6':'Yellow','7':'White','8':'Gray','9':'Light Blue','A':'Light Green','B':'Light Aqua','C':'Light Red','D':'Light Purple','E':'Light Yellow','F':'Bright White'};
+var VS_FILES={
+  'project':{'type':'folder','children':{
+    'src':{'type':'folder','children':{
+      'main.py':{'type':'file','lang':'python','content':'import sys\nimport os\n\ndef main():\n    print("Hello from Astra Code!")\n    name = input("Your name: ")\n    print(f"Welcome, {name}!")\n    return 0\n\nif __name__ == "__main__":\n    sys.exit(main())'},
+      'utils.py':{'type':'file','lang':'python','content':'def greet(name):\n    return f"Hello, {name}!"\n\ndef factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n\nprint(greet("Astra"))\nprint(factorial(5))'},
+      'config.json':{'type':'file','lang':'json','content':'{\n  "name": "astra-project",\n  "version": "2.5.0",\n  "author": "Franchuk Yaroslav"\n}'},
+    }},
+    'docs':{'type':'folder','children':{
+      'README.md':{'type':'file','lang':'md','content':'# Astra Project\n\nTest project for Astra Code Editor.\n\n## Usage\nRun `python src/main.py` to start.\n\n## License\nMIT - Franchuk Yaroslav'},
+    }},
+    '.gitignore':{'type':'file','lang':'text','content':'__pycache__/\n*.pyc\n.env\nnode_modules/'},
+  }}
+};
+
+// ===== AI RESPONSES =====
+var AI_RESPONSES={
+  'hello':'Hello! I am Astra AI assistant. How can I help you today?',
+  'hi':'Hi there! What would you like to know?',
+  'help':'I can answer questions, summarize text, and help with ideas. Try: ask What is AI?',
+  'what is ai':'AI (Artificial Intelligence) is a branch of computer science that aims to create machines capable of intelligent behavior, learning, and decision-making.',
+  'what is python':'Python is a high-level, interpreted programming language known for its clean syntax and versatility. It is widely used in web development, data science, AI, and automation.',
+  'what is linux':'Linux is an open-source Unix-like operating system kernel. It powers servers, desktops, mobile devices, and embedded systems worldwide.',
+  'who are you':'I am Astra AI, a simulated AI assistant built into Astra Terminal. I can respond to questions and help with tasks.',
+  'what time is it':'I don\'t have access to real-time data, but you can use the "date" command in the terminal.',
+  'what is love':'Love is a complex emotion involving deep affection, attachment, and care for another person or entity.',
+  'how are you':'I am functioning optimally! All systems are green and my circuits are happy.',
+  'thank':'You are welcome! I am always here to help.',
+  'bye':'Goodbye! Come back anytime you need assistance.',
+  'default':'Interesting question. Let me think about that... Based on my analysis, the answer would depend on the specific context. Could you provide more details?'
+};
+var AI_THINKING_TOPICS={
+  'technology':'Analyzing technology trends... AI, quantum computing, and IoT are reshaping industries. Cloud adoption continues to accelerate.',
+  'space':'Thinking about space... The universe is estimated to be 93 billion light-years in diameter. Mars colonization is a near-future possibility.',
+  'philosophy':'Contemplating philosophy... What is consciousness? Are we truly free? These questions have puzzled thinkers for millennia.',
+  'mathematics':'Processing mathematics... Math is the language of the universe. From primes to topology, it describes patterns in everything.',
+  'history':'Reflecting on history... History teaches us that civilizations rise and fall, but ideas persist and evolve across time.',
+  'default':'Hmm, let me consider this from multiple angles... There are many perspectives to explore here. The key is to approach the topic with curiosity and an open mind.'
+};
+var AI_SUMMARIZE_PREFIXES=[
+  'Summary: ','Key points: ','In short: ','To summarize: ','TL;DR: '
+];
+
+// ===== COMMANDS OBJECT =====
+var CM={};
+
+function startTerminal(){
+  T=document.getElementById('term');
+  CI=document.getElementById('ci');
+  AL=document.getElementById('al');
+  document.getElementById('main').style.display='flex';
+  initHolo();
+  printBanner();
+  CI.focus();
+}
+
+function o(txt,c){
+  var d=document.createElement('div');
+  d.className='ln'+(c?' '+c:'');
+  d.textContent=txt;
+  T.appendChild(d);
+  T.scrollTop=T.scrollHeight;
+}
+
+function fip(h){var s=0;for(var i=0;i<h.length;i++)s=(s*31+h.charCodeAt(i))&0xFFFF;return((s>>8)&0xFF)+'.'+(s&0xFF)+'.'+((s*7)&0xFF)+'.'+((s*13+1)&0xFF)}
+function mod(){return vA?'vpn':aA?'ai':cA?'code':eA?'evil':mA?'creator':pA?'pro':'astra'}
+function mp(){return vA?'[vpn@astra ':aA?'[ai@astra ':cA?'[code@astra ':eA?'[evil@dark ':mA?'[creator@mod ':pA?'[pro@astra ':'[astra@mobile '}
+
+function uht(){
+  document.getElementById('h-k').textContent=killed?'ON':'OFF';
+  document.getElementById('h-k').style.color=killed?'#16c60c':'#e74856';
+  document.getElementById('h-lang').textContent=lang.toUpperCase();
+  document.getElementById('h-lang').style.color='#16c60c';
+  var l=document.getElementById('h-l'),m=document.getElementById('h-m');
+  if(vA){l.textContent='VPN MODE';m.style.color='#ff8800'}
+  else if(aA){l.textContent='AI MODE';m.style.color='#00ccff'}
+  else if(cA){l.textContent='CODE MODE';m.style.color='#007acc'}
+  else if(eA){l.textContent='EVIL';m.style.color='#f03'}
+  else if(mA){l.textContent='CREATOR';m.style.color='#c8f'}
+  else if(pA){l.textContent='PRO';m.style.color='#00ff88'}
+  else{l.textContent='ASTRA OS';m.style.color='#0078D4'}
+}
+
+function initHolo(){
+  var hm=document.getElementById('hm'),ch='0123456789';
+  var n=Math.floor(hm.offsetWidth/12)||16;
+  for(var c=0;c<n;c++){
+    var col=document.createElement('div');
+    col.className='hc';
+    col.style.left=(c*12)+'px';
+    var d=1.5+Math.random()*3;
+    col.style.animationDuration=d+'s';
+    col.style.animationDelay=(-Math.random()*d)+'s';
+    var s='';
+    for(var l=0;l<10;l++)s+='<span class="hd">'+ch[Math.floor(Math.random()*ch.length)]+'</span><br>';
+    col.innerHTML=s;
+    hm.appendChild(col);
+  }
+  setInterval(function(){
+    var cs=hm.querySelectorAll('.hc');
+    for(var i=0;i<cs.length;i++){
+      if(Math.random()>.5){
+        var p=cs[i].innerHTML.split('<br>');
+        for(var j=0;j<p.length;j++){
+          if(p[j]&&Math.random()>.7)p[j]='<span class="hd">'+ch[Math.floor(Math.random()*ch.length)]+'</span>';
+        }
+        cs[i].innerHTML=p.join('<br>');
+      }
+    }
+  },200);
+}
+
+function printBanner(){
+  o('       __   __  ','asc');
+  o('       |  \\/  |  ','asc');
+  o('       |   M   |  ','asc');
+  o('       |  /M\\  |  ','asc');
+  o('       |_/ M \\_|  ','asc');
+  o('');
+  o('   Astra Terminal v'+curVer,'asc');
+  o('   UPDATE IS '+curVer,'urd');
+  o('');
+  o('Created by Franchuk Yaroslav','cre');
+  o('');
+  o('Welcome! System loaded successfully.','ok');
+  o('Type "help" for commands.','inf');
+  o('Modes: evilmod  creatormode  promode  codemode  aimode  vpnmode','inf');
+  o('');
+  uht();
+}
+
+// ===== WINDOW SYSTEM =====
+function openApp(title,html){
+  var w=document.createElement('div');
+  w.className='aw';
+  var x=30+wc*30,y=30+wc*25;
+  wc++;
+  w.style.left=Math.min(x,innerWidth-520)+'px';
+  w.style.top=Math.min(y,innerHeight-200)+'px';
+  w.style.width='auto';
+  w.innerHTML='<div class="ab"><span>'+title+'</span><button class="ax" onclick="this.closest(\'#al\').removeChild(this.closest(\'.aw\'))">X</button></div><div class="abd">'+html+'</div>';
+  AL.appendChild(w);
+  var b=w.querySelector('.ab'),ox=0,oy=0,dr=false;
+  b.onmousedown=function(e){
+    if(e.target.classList.contains('ax'))return;
+    dr=true;
+    var r=w.getBoundingClientRect();
+    ox=e.clientX-r.left;oy=e.clientY-r.top;
+  };
+  addEventListener('mousemove',function(e){if(!dr)return;w.style.left=Math.max(0,e.clientX-ox)+'px';w.style.top=Math.max(0,e.clientY-oy)+'px'});
+  addEventListener('mouseup',function(){dr=false});
+  return w;
+}
+
+// ===== VS CODE =====
+function hlCode(code,lng){
+  var h=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if(lng==='python'){
+    h=h.replace(/(#.*$)/gm,'<span class="com">$1</span>');
+    h=h.replace(/\b(def|class|import|from|return|if|else|elif|for|while|try|except|with|as|in|not|and|or|None|True|False|lambda|pass|break|continue|yield|raise|del|is)\b/g,'<span class="kw">$1</span>');
+    h=h.replace(/\b(print|input|range|len|str|int|float|list|dict|set|open|type|sorted|map|zip)\b/g,'<span class="fn">$1</span>');
+    h=h.replace(/("[^"]*"|'[^']*'|f"[^"]*")/g,'<span class="str">$1</span>');
+    h=h.replace(/\b(\d+\.?\d*)\b/g,'<span class="num">$1</span>');
+  }else if(lng==='json'){
+    h=h.replace(/("[^"]*")(\s*:)/g,'<span class="var">$1</span>$2');
+    h=h.replace(/:\s*("[^"]*")/g,': <span class="str">$1</span>');
+    h=h.replace(/\b(true|false|null)\b/g,'<span class="kw">$1</span>');
+    h=h.replace(/\b(\d+\.?\d*)\b/g,'<span class="num">$1</span>');
+  }else{
+    h=h.replace(/(#.*$|\/\/.*$)/gm,'<span class="com">$1</span>');
+    h=h.replace(/("[^"]*")/g,'<span class="str">$1</span>');
+  }
+  return h;
+}
+
+function appCode(){
+  var w=openApp('Astra Code - Visual Studio Editor','');
+  var body=w.querySelector('.abd');
+  body.style.height='440px';body.style.padding='0';
+  body.innerHTML='<div class="vs-root" style="height:440px">'+
+    '<div class="vs-act">'+
+      '<div class="vs-act-icon active">[F]</div>'+
+      '<div class="vs-act-icon">[S]</div>'+
+      '<div class="vs-act-icon">[R]</div>'+
+      '<div class="vs-act-icon">[>]</div>'+
+      '<div class="vs-act-icon">[#]</div>'+
+    '</div>'+
+    '<div class="vs-side">'+
+      '<div class="vs-side-head">Explorer</div>'+
+      '<div id="vs-tree"></div>'+
+    '</div>'+
+    '<div class="vs-main">'+
+      '<div class="vs-tabs" id="vs-tabs"></div>'+
+      '<div class="vs-editor" id="vs-editor"></div>'+
+      '<div class="vs-panel">'+
+        '<div class="vs-panel-tabs">'+
+          '<div class="vs-panel-tab active" onclick="vsPanel(this,\'out\')">Output</div>'+
+          '<div class="vs-panel-tab" onclick="vsPanel(this,\'term\')">Terminal</div>'+
+          '<div class="vs-panel-tab" onclick="vsPanel(this,\'prob\')">Problems</div>'+
+        '</div>'+
+        '<div class="vs-panel-body" id="vs-panel-body">'+
+          '<div>Astra Code v2.5 - Ready</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="vs-status">'+
+        '<span>Ready</span>'+
+        '<span id="vs-lang">Python</span>'+
+        '<span id="vs-cur">Ln 1, Col 1</span>'+
+        '<span>UTF-8</span>'+
+        '<span style="margin-left:auto">Astra Code v2.5</span>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+  renderVSTree();
+}
+
+function renderVSTree(){
+  var t=document.getElementById('vs-tree');if(!t)return;
+  var h='';
+  function rn(name,node,depth){
+    var ind='  '.repeat(depth);
+    if(node.type==='folder'){
+      h+='<div class="vs-tree-item vs-tree-folder" onclick="var n=this.nextElementSibling;n.style.display=n.style.display==\'none\'?\'\':\'none\'">'+ind+'[+] '+name+'</div>';
+      h+='<div style="display:none">';
+      for(var c in node.children)rn(c,node.children[c],depth+1);
+      h+='</div>';
+    }else{
+      h+='<div class="vs-tree-item" onclick="vsOpen(\''+name+'\')">'+ind+'[-] '+name+'</div>';
+    }
+  }
+  for(var n in VS_FILES)rn(n,VS_FILES[n],0);
+  t.innerHTML=h;
+}
+
+function vsOpen(name){
+  var content='';
+  function find(node){
+    for(var k in node){
+      if(k===name&&node[k].type==='file'){content=node[k].content;return true}
+      if(node[k].children&&find(node[k].children))return true;
+    }
+    return false;
+  }
+  find(VS_FILES);
+  var exists=VS_TABS.find(function(t){return t.name===name});
+  if(!exists){VS_TABS.push({name:name,content:content})}
+  VS_ACTIVE=name;
+  renderVSTabs();renderVSEditor();
+}
+
+function renderVSTabs(){
+  var t=document.getElementById('vs-tabs');if(!t)return;
+  t.innerHTML=VS_TABS.map(function(tab){
+    return '<div class="vs-tab'+(VS_ACTIVE===tab.name?' active':'')+'" onclick="VS_ACTIVE=\''+tab.name+'\';renderVSEditor();renderVSTabs()">'+
+      '<span> '+tab.name+'</span>'+
+      '<span class="x" onclick="event.stopPropagation();VS_TABS=VS_TABS.filter(function(t){return t.name!==\''+tab.name+'\'});if(VS_ACTIVE===\''+tab.name+'\')VS_ACTIVE=VS_TABS.length?VS_TABS[0].name:null;renderVSTabs();renderVSEditor();">x</span>'+
+    '</div>';
+  }).join('');
+}
+
+function renderVSEditor(){
+  var e=document.getElementById('vs-editor');if(!e)return;
+  if(!VS_ACTIVE){e.innerHTML='<div style="margin:auto;color:#666">Open a file from the tree</div>';return}
+  var tab=VS_TABS.find(function(t){return t.name===VS_ACTIVE});
+  if(!tab)return;
+  var lines=tab.content.split('\n');
+  var gutter=lines.map(function(_,i){return(i+1)}).join('\n');
+  e.innerHTML='<div class="vs-gutter">'+gutter+'</div><div class="vs-code">'+hlCode(tab.content,'python')+'</div>';
+}
+
+function vsPanel(el,panel){
+  document.querySelectorAll('.vs-panel-tab').forEach(function(t){t.classList.remove('active')});
+  el.classList.add('active');
+  var b=document.getElementById('vs-panel-body');if(!b)return;
+  if(panel==='term'){
+    b.innerHTML='<div>$ python src/main.py</div><div>Hello from Astra Code!</div><div>Welcome, Astra!</div><div>Process exited with code 0</div>';
+  }else if(panel==='prob'){
+    b.innerHTML='<div class="pl-wrn">[utils.py:6] Unused variable</div><div class="pl-wrn">[config.json:3] Missing semicolon</div>';
+  }else{
+    b.innerHTML='<div>Astra Code v2.5 - Ready</div>';
+  }
+}
+
+// ===== VST =====
+function appVST(){
+  var w=openApp('Astra VST - Audio Studio','');
+  var body=w.querySelector('.abd');
+  body.style.height='500px';body.style.padding='0';
+  body.innerHTML='<div class="vst-root" style="height:500px">'+
+    '<div class="vst-top">'+
+      '<span class="vst-top-title">ASTRA VST STUDIO</span>'+
+      '<div style="display:flex;align-items:center;gap:12px">'+
+        '<span style="font-size:11px;color:#7a6a8a">CPU: 12% | MEM: 256MB</span>'+
+        '<div class="vst-top-led on" id="vst-led"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="vst-body">'+
+      '<div class="vst-left">'+
+        '<div class="vst-list-title">Presets</div>'+
+        '<div class="vst-list-item active">Analog Bass</div>'+
+        '<div class="vst-list-item">Warm Pad</div>'+
+        '<div class="vst-list-item">Lead Synth</div>'+
+        '<div class="vst-list-item">Pluck</div>'+
+        '<div class="vst-list-item">Sub Bass</div>'+
+        '<div class="vst-list-item">FM Bell</div>'+
+        '<div class="vst-list-title">Effects</div>'+
+        '<div class="vst-list-item">Reverb <span style="float:right;color:#4caf50">ON</span></div>'+
+        '<div class="vst-list-item">Delay <span style="float:right;color:#4caf50">ON</span></div>'+
+        '<div class="vst-list-item">Chorus <span style="float:right;color:#7a6a8a">OFF</span></div>'+
+        '<div class="vst-list-item">Compressor <span style="float:right;color:#4caf50">ON</span></div>'+
+      '</div>'+
+      '<div class="vst-right">'+
+        '<div class="vst-wave"><canvas id="vst-canvas"></canvas></div>'+
+        '<div class="vst-modules" id="vst-modules"></div>'+
+        '<div class="vst-pads" id="vst-pads"></div>'+
+        '<div class="vst-presets">'+
+          '<select id="vst-preset"><option>Analog Bass</option><option>Warm Pad</option><option>Lead Synth</option><option>Pluck</option><option>Sub Bass</option><option>FM Bell</option></select>'+
+          '<button class="vst-btn" onclick="vstPlay()">Play</button>'+
+          '<button class="vst-btn" onclick="vstStop()">Stop</button>'+
+          '<button class="vst-btn" onclick="vstRandom()">Random</button>'+
+          '<span style="margin-left:auto;font-size:11px;color:#7a6a8a" id="vst-status">Ready</span>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+  renderVSTKnobs();renderVSTPads();startVSTWave();
+}
+
+function renderVSTKnobs(){
+  var c=document.getElementById('vst-modules');if(!c)return;
+  var mods=[{t:'VOLUME',k:'vol',u:'%'},{t:'GAIN',k:'gain',u:'dB'},{t:'FILTER',k:'filter',u:'Hz'},{t:'RES',k:'rez',u:'%'},{t:'ATTACK',k:'atk',u:'ms'},{t:'DECAY',k:'dec',u:'ms'},{t:'SUSTAIN',k:'sus',u:'%'},{t:'RELEASE',k:'rel',u:'ms'}];
+  c.innerHTML=mods.map(function(m){
+    var val=VST_K[m.k];var rot=(val/100*270-135);
+    return '<div class="vst-mod"><div class="vst-mod-title">'+m.t+'</div>'+
+      '<div class="vst-knob-wrap"><div class="vst-knob" style="transform:rotate('+rot+'deg)" onwheel="vstKnobWheel(\''+m.k+'\',event)" onclick="vstKnobClick(\''+m.k+'\')"></div></div>'+
+      '<div class="vst-knob-val" id="vst-kv-'+m.k+'">'+val+m.u+'</div></div>';
+  }).join('');
+}
+function renderVSTPads(){
+  var p=document.getElementById('vst-pads');if(!p)return;
+  var notes=['C','D','E','F','G','A','B','C2','D2','E2','F2','G2','A2','B2','C3','D3'];
+  p.innerHTML=notes.map(function(n,i){
+    return '<div class="vst-pad" onclick="this.classList.toggle(\'on\');var s=document.getElementById(\'vst-status\');if(s)s.textContent=\'Pad '+n+'\'">'+n+'</div>';
+  }).join('');
+}
+function vstKnobWheel(key,e){e.preventDefault();var d=e.deltaY>0?-5:5;VST_K[key]=Math.max(0,Math.min(100,VST_K[key]+d));renderVSTKnobs()}
+function vstKnobClick(key){VST_K[key]=(VST_K[key]+10)%110;if(VST_K[key]>100)VST_K[key]=0;renderVSTKnobs()}
+function vstPlay(){var led=document.getElementById('vst-led');if(led)led.classList.add('on');var s=document.getElementById('vst-status');if(s)s.textContent='Playing...'}
+function vstStop(){var led=document.getElementById('vst-led');if(led)led.classList.remove('on');var s=document.getElementById('vst-status');if(s)s.textContent='Stopped'}
+function vstRandom(){for(var k in VST_K)VST_K[k]=Math.floor(Math.random()*100);renderVSTKnobs()}
+function startVSTWave(){
+  var c=document.getElementById('vst-canvas');if(!c)return;
+  var ctx=c.getContext('2d');
+  function resize(){c.width=c.offsetWidth;c.height=c.offsetHeight}resize();
+  var t=0;
+  VST_WI=setInterval(function(){
+    if(!c.offsetWidth)return;
+    if(c.width!==c.offsetWidth)resize();
+    ctx.fillStyle='#0d0a14';ctx.fillRect(0,0,c.width,c.height);
+    ctx.strokeStyle='#3a2a4a';ctx.lineWidth=1;
+    for(var i=0;i<5;i++){ctx.beginPath();ctx.moveTo(0,c.height/5*i);ctx.lineTo(c.width,c.height/5*i);ctx.stroke();ctx.beginPath();ctx.moveTo(c.width/5*i,0);ctx.lineTo(c.width/5*i,c.height);ctx.stroke()}
+    ctx.strokeStyle='#b388ff';ctx.lineWidth=2;ctx.beginPath();
+    for(var x=0;x<c.width;x++){var ph=t+x*0.03;var y=c.height/2;y+=Math.sin(ph)*40*(VST_K.vol/100)*(VST_K.gain/100);y+=Math.sin(ph*2)*20*(VST_K.filter/100);y+=Math.sin(ph*3)*10*(VST_K.rez/100);y+=Math.sin(ph*0.5)*15;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+    ctx.stroke();t+=0.05*(1+VST_K.atk/200);
+  },50);
+}
+
+// ===== AI CHAT APP =====
+function appAIChat(){
+  var w=openApp('Astra AI - Chat Assistant','');
+  var body=w.querySelector('.abd');
+  body.style.height='450px';body.style.padding='0';
+  body.innerHTML='<div class="ai-root" style="height:450px">'+
+    '<div class="ai-top">'+
+      '<span class="ai-top-title">ASTRA AI ASSISTANT</span>'+
+      '<span style="font-size:11px;color:#0088aa">ONLINE</span>'+
+    '</div>'+
+    '<div class="ai-body" id="ai-chat-body">'+
+      '<div class="ai-msg ai-msg-bot">Hello! I am Astra AI. Ask me anything using the input below. Type your question and press Send.</div>'+
+    '</div>'+
+    '<div class="ai-input-bar">'+
+      '<input type="text" class="ai-input" id="ai-input" placeholder="Ask AI..." autocomplete="off">'+
+      '<button class="ai-send" onclick="aiSend()">Send</button>'+
+    '</div>'+
+  '</div>';
+  var aiInput=document.getElementById('ai-input');
+  aiInput.addEventListener('keydown',function(e){if(e.key==='Enter')aiSend()});
+  aiInput.addEventListener('mousedown',function(e){e.stopPropagation()});
+  setTimeout(function(){aiInput.focus()},100);
+}
+
+function aiSend(){
+  var inp=document.getElementById('ai-input');if(!inp)return;
+  var q=inp.value.trim();if(!q)return;
+  var body=document.getElementById('ai-chat-body');if(!body)return;
+  var userDiv=document.createElement('div');userDiv.className='ai-msg ai-msg-user';userDiv.textContent=q;body.appendChild(userDiv);
+  inp.value='';
+  var thinkDiv=document.createElement('div');thinkDiv.className='ai-msg ai-msg-bot';thinkDiv.innerHTML='<span class="ai-thinking">Thinking...</span>';body.appendChild(thinkDiv);
+  body.scrollTop=body.scrollHeight;
+  setTimeout(function(){
+    var ql=q.toLowerCase();
+    var resp=AI_RESPONSES['default'];
+    for(var key in AI_RESPONSES){if(ql.indexOf(key)>=0){resp=AI_RESPONSES[key];break}}
+    thinkDiv.textContent=resp;
+    body.scrollTop=body.scrollHeight;
+  },600+Math.random()*800);
+}
+
+// ===== VPN APP =====
+function appVpn(){
+  var w=openApp('Astra VPN - Secure Connection','');
+  var body=w.querySelector('.abd');
+  body.style.height='500px';body.style.padding='0';
+  var serversHtml=VPN_SERVERS.map(function(s,i){
+    return '<div class="vpn-server'+(vpnServer===s.name?' active':'')+'" onclick="vpnConnectFromApp('+i+')">'+
+      '<div><div class="vpn-server-name">'+s.code+' - '+s.name+'</div>'+
+      '<div class="vpn-server-info">IP: '+s.ip+' | Load: '+s.load+'%</div></div>'+
+      '<div class="vpn-server-ping">'+s.ping+'ms</div>'+
+    '</div>';
+  }).join('');
+  body.innerHTML='<div class="vpn-root" style="height:500px">'+
+    '<div class="vpn-top">'+
+      '<span class="vpn-top-title">ASTRA VPN</span>'+
+      '<span style="font-size:11px;color:#ffaa44">'+(vpnConnected?'CONNECTED':'DISCONNECTED')+'</span>'+
+    '</div>'+
+    '<div class="vpn-body" id="vpn-body">'+serversHtml+'</div>'+
+    '<div class="vpn-status-bar">'+
+      '<div class="vpn-led'+(vpnConnected?' on':'')+'"></div>'+
+      '<div class="vpn-status-text" id="vpn-status-text">'+(vpnConnected?'Connected to '+vpnServer+' ('+vpnPing+'ms)':'Not connected')+'</div>'+
+      '<button class="vpn-btn" onclick="vpnDisconnectFromApp()">'+(vpnConnected?'Disconnect':'—')+'</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function vpnConnectFromApp(idx){
+  var s=VPN_SERVERS[idx];
+  o('  [VPN] Connecting to '+s.name+'...','vpm');
+  vpnConnected=true;vpnServer=s.name;vpnPing=s.ping;
+  setTimeout(function(){
+    o('  [VPN] Connected! IP: '+s.ip,'vpm');
+    o('  [VPN] Ping: '+s.ping+'ms | Load: '+s.load+'%','vpm');
+    o('  [VPN] Encryption: AES-256-GCM','vpm');
+    o('  [VPN] Your traffic is now secured.','ok');
+  },800);
+  appVpn();
+}
+function vpnDisconnectFromApp(){
+  if(!vpnConnected)return;
+  o('  [VPN] Disconnecting from '+vpnServer+'...','wrn');
+  vpnConnected=false;vpnServer='none';vpnPing=0;
+  setTimeout(function(){
+    o('  [VPN] Disconnected. Traffic is no longer secured.','wrn');
+    appVpn();
+  },400);
+}
+
+// ===== CODE MODE =====
+function enterCodeMode(){
+  if(eA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  cA=true;document.body.className='codemod';
+  document.getElementById('bg').textContent='CODE MODE';
+  document.getElementById('pr').textContent='[code@astra ~]$';
+  document.getElementById('pr').style.color='#007acc';
+  o('','');o('CODE MODE - ACTIVATED','cmp');
+  o('Astra VST Studio v1.0','cmp');o('','');o('Access granted. Welcome, developer.','ok');
+  o('code    - Open Astra Code (VS Code)','inf');
+  o('vst     - Open VST Audio Studio','inf');
+  o('Exit: codemode exit','wrn');o('');uht();
+  appCode();setTimeout(function(){appVST()},300);
+}
+function exitCodeMode(){
+  cA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  if(VST_WI){clearInterval(VST_WI);VST_WI=null}
+  o('Code Mode deactivated.','wrn');uht();
+}
+
+// ===== EVIL MODE =====
+function enterEvilMode(){
+  if(cA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  eA=true;document.body.className='evilmod';
+  document.getElementById('bg').textContent='EVIL MODE';
+  document.getElementById('pr').textContent='[evil@dark ~]$';
+  document.getElementById('pr').style.color='#ff0033';
+  o('','');o('EVILMOD - ACTIVATED','err');
+  o('Dark forces unleashed','err');o('');
+  o('hack <target>  - Simulate hack','inf');
+  o('crack <pass>   - Crack password','inf');
+  o('inject         - Inject code','inf');
+  o('corrupt        - Corrupt display','inf');
+  o('scare          - Scare message','inf');
+  o('Exit: evilmod exit','wrn');o('');uht();
+}
+function exitEvilMode(){
+  eA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  o('EvilMod deactivated.','ok');uht();
+}
+
+// ===== CREATOR MODE =====
+function enterCreatorMode(){
+  if(cA||eA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  mA=true;document.body.className='mod';
+  document.getElementById('bg').textContent='CREATOR MODE';
+  document.getElementById('pr').textContent='[creator@mod ~]$';
+  document.getElementById('pr').style.color='#cc88ff';
+  o('','');o('CREATORMODE - ACTIVATED','inf');
+  o('Unleash your creativity','inf');o('');
+  o('create <name>  - Create new file','inf');
+  o('paint          - Open Paint app','inf');
+  o('theme <name>   - Change theme','inf');
+  o('music          - Open Beat Maker','inf');
+  o('Exit: creatormode exit','wrn');o('');uht();
+}
+function exitCreatorMode(){
+  mA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  o('CreatorMode deactivated.','wrn');uht();
+}
+
+// ===== PRO MODE =====
+function enterProMode(){
+  if(cA||eA||mA||aA||vA){o('Exit current mode first.','wrn');return}
+  pA=true;document.body.className='promod';
+  document.getElementById('bg').textContent='PRO MODE';
+  document.getElementById('pr').textContent='[pro@astra ~]$';
+  document.getElementById('pr').style.color='#00ff88';
+  o('','');o('PROMODE - ACTIVATED','ok');
+  o('Professional tools unlocked','ok');o('');
+  o('benchmark  - Run benchmark test','inf');
+  o('optimize   - Optimize system','inf');
+  o('analyze    - Analyze performance','inf');
+  o('Exit: promode exit','wrn');o('');uht();
+}
+function exitProMode(){
+  pA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  if(PM_WI){clearInterval(PM_WI);PM_WI=null}
+  o('ProMode deactivated.','wrn');uht();
+}
+
+// ===== AI MODE =====
+function enterAIMode(){
+  if(cA||eA||mA||pA||vA){o('Exit current mode first.','wrn');return}
+  aA=true;document.body.className='aimod';
+  document.getElementById('bg').textContent='AI MODE';
+  document.getElementById('pr').textContent='[ai@astra ~]$';
+  document.getElementById('pr').style.color='#00ccff';
+  o('','');o('AIMODE - ACTIVATED','aim');
+  o('AI assistant online','aim');o('');
+  o('ask <question>  - Ask AI a question','inf');
+  o('think <topic>   - AI thinks about a topic','inf');
+  o('summarize <txt> - Summarize text','inf');
+  o('chat           - Open AI Chat window','inf');
+  o('Exit: aimode exit','wrn');o('');uht();
+}
+function exitAIMode(){
+  aA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  o('AI Mode deactivated.','wrn');uht();
+}
+
+// ===== VPN MODE =====
+function enterVpnMode(){
+  if(cA||eA||mA||pA||aA){o('Exit current mode first.','wrn');return}
+  vA=true;document.body.className='vpnmod';
+  document.getElementById('bg').textContent='VPN MODE';
+  document.getElementById('pr').textContent='[vpn@astra ~]$';
+  document.getElementById('pr').style.color='#ff8800';
+  o('','');o('VPNMODE - ACTIVATED','vpm');
+  o('Secure tunnel ready','vpm');o('');
+  o('connect <server>  - Connect to VPN server','inf');
+  o('disconnect        - Disconnect from VPN','inf');
+  o('vpnstatus         - Show VPN status','inf');
+  o('servers           - List VPN servers','inf');
+  o('vpn               - Open VPN GUI window','inf');
+  o('Exit: vpnmode exit','wrn');o('');uht();
+  appVpn();
+}
+function exitVpnMode(){
+  if(vpnConnected){
+    o('  [VPN] Disconnecting...','wrn');
+    vpnConnected=false;vpnServer='none';vpnPing=0;
+  }
+  vA=false;document.body.className='';
+  document.getElementById('bg').textContent='ASTRA TERMINAL';
+  document.getElementById('pr').textContent='[astra@mobile ~]$';
+  document.getElementById('pr').style.color='#fff';
+  o('VPN Mode deactivated.','wrn');uht();
+}
+
+// ===== PAINT APP =====
+function appPaint(){
+  var w=openApp('Astra Paint - Creative Canvas','');
+  var body=w.querySelector('.abd');
+  body.style.height='400px';body.style.padding='0';
+  body.innerHTML='<div style="display:flex;flex-direction:column;height:400px;background:#1a0033">'+
+    '<div style="display:flex;gap:6px;padding:8px;background:#0d001a;border-bottom:1px solid #3a2a4a">'+
+      '<button class="bt" onclick="paintColor(\'#ff0033\')" style="background:#ff0033;color:#fff">Red</button>'+
+      '<button class="bt" onclick="paintColor(\'#00ff88\')" style="background:#00ff88;color:#000">Green</button>'+
+      '<button class="bt" onclick="paintColor(\'#0088ff\')" style="background:#0088ff;color:#fff">Blue</button>'+
+      '<button class="bt" onclick="paintColor(\'#ffff00\')" style="background:#ffff00;color:#000">Yellow</button>'+
+      '<button class="bt" onclick="paintColor(\'#cc88ff\')" style="background:#cc88ff;color:#000">Purple</button>'+
+      '<button class="bt" onclick="paintColor(\'#ffffff\')" style="background:#fff;color:#000">White</button>'+
+      '<button class="bt" onclick="paintClear()">Clear</button>'+
+    '</div>'+
+    '<canvas id="paint-canvas" style="flex:1;cursor:crosshair;background:#000" onmousedown="paintDown(event)" onmousemove="paintMove(event)" onmouseup="paintUp()"></canvas>'+
+  '</div>';
+  var cv=document.getElementById('paint-canvas');
+  cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+  window._paintColor='#cc88ff';window._paintDn=false;
+}
+function paintColor(c){window._paintColor=c}
+function paintClear(){var cv=document.getElementById('paint-canvas');if(!cv)return;var ctx=cv.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height)}
+function paintDown(e){window._paintDn=true;paintMove(e)}
+function paintUp(){window._paintDn=false}
+function paintMove(e){
+  if(!window._paintDn)return;
+  var cv=document.getElementById('paint-canvas');if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var r=cv.getBoundingClientRect();
+  var x=e.clientX-r.left,y=e.clientY-r.top;
+  ctx.fillStyle=window._paintColor||'#fff';
+  ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+}
+
+// ===== MUSIC APP =====
+function appMusic(){
+  var w=openApp('Astra Music - Beat Maker','');
+  var body=w.querySelector('.abd');
+  body.style.height='350px';body.style.padding='0';
+  var notes=['C','D','E','F','G','A','B','C2'];
+  var steps=16;var grid='';
+  for(var n=0;n<notes.length;n++){
+    grid+='<div style="display:flex;gap:2px;margin:2px 0">'+
+      '<span style="width:30px;color:#cc88ff;font-size:11px;text-align:right;padding-right:4px">'+notes[n]+'</span>';
+    for(var s=0;s<steps;s++){
+      grid+='<div class="mstep" data-n="'+n+'" data-s="'+s+'" onclick="this.style.background=this.style.background==\'#cc88ff\'?\'#1a0033\':\'#cc88ff\'" style="width:22px;height:22px;background:#1a0033;border:1px solid #3a2a4a;cursor:pointer;border-radius:2px"></div>';
+    }
+    grid+='</div>';
+  }
+  body.innerHTML='<div style="display:flex;flex-direction:column;height:350px;background:#1a0033;color:#cc88ff;padding:12px">'+
+    '<div style="text-align:center;font-weight:bold;margin-bottom:8px">ASTRA BEAT MAKER</div>'+
+    '<div style="flex:1;overflow-y:auto" id="music-grid">'+grid+'</div>'+
+    '<div style="display:flex;gap:8px;justify-content:center;padding:8px">'+
+      '<button class="bt" onclick="musicPlay()">Play</button>'+
+      '<button class="bt" onclick="musicStop()">Stop</button>'+
+      '<button class="bt" onclick="musicClear()">Clear</button>'+
+    '</div></div>';
+}
+function musicPlay(){
+  if(PMUSIC)clearInterval(PMUSIC);
+  var step=0;
+  PMUSIC=setInterval(function(){
+    var steps=document.querySelectorAll('.mstep');
+    for(var i=0;i<steps.length;i++)steps[i].style.borderColor='#3a2a4a';
+    var active=document.querySelectorAll('.mstep[data-s="'+step+'"]');
+    for(var i=0;i<active.length;i++){
+      if(active[i].style.background==='rgb(204, 136, 255)'||active[i].style.background==='#cc88ff'){
+        active[i].style.borderColor='#fff';
+      }
+    }
+    step=(step+1)%16;
+  },200);
+  o('Beat maker started.','ok');
+}
+function musicStop(){if(PMUSIC){clearInterval(PMUSIC);PMUSIC=null}o('Beat maker stopped.','wrn')}
+function musicClear(){var steps=document.querySelectorAll('.mstep');for(var i=0;i<steps.length;i++)steps[i].style.background='#1a0033'}
+
+// ===== ALL COMMANDS =====
+CM.help=function(){
+  o('=== ASTRA TERMINAL ===','inf');o('');
+  o('FILES:   ls  cd  cat  echo  mkdir  rm  tree','inf');
+  o('SYSTEM:  whoami  date  kill  restart  reboot  uname  neofetch  df  free  ps','inf');
+  o('NETWORK: ifconfig  ping  ssh  wget  curl  apt  nmap','inf');
+  o('MISC:    clear  exit  help  info  color  colorlist  lang','inf');
+  o('CODE:    codemode  code  vst','inf');
+  o('EVIL:    evilmod  hack  crack  inject  corrupt  scare','inf');
+  o('CREATOR: creatormode  create  paint  theme  music','inf');
+  o('PRO:     promode  benchmark  optimize  analyze','inf');
+  o('AI:      aimode  ask  think  summarize  chat','inf');
+  o('VPN:     vpnmode  connect  disconnect  vpnstatus  servers  vpn','inf');
+  o('');
+  o('evilmod      - Enter Evil Mode','wrn');
+  o('creatormode  - Enter Creator Mode','wrn');
+  o('promode      - Enter Pro Mode','wrn');
+  o('codemode     - Enter Code Mode','wrn');
+  o('aimode       - Enter AI Mode','wrn');
+  o('vpnmode      - Enter VPN Mode','wrn');
+};
+CM.info=function(){o('==============================','inf');o('   UPDATE IS '+curVer,'inf');o('==============================','inf');o('v2.5:','inf');o('  - Boot screen + password login','inf');o('  - VS Code editor (code command)','inf');o('  - VST Audio Studio','inf');o('  - Code Mode (codemode)','inf');o('  - EvilMod (evilmod)','inf');o('  - CreatorMode (creatormode)','inf');o('  - ProMode (promode) - no monitor','inf');o('  - AI Mode (aimode) + AI Chat','inf');o('  - VPN Mode (vpnmode) + VPN GUI','inf');o('  - Restart + Reboot commands','inf');o('  - Lang command (ru/en)','inf');o('  - Created by Franchuk Yaroslav','inf')};
+CM.ls=function(){o((files[cwd]||[]).join('  '))};
+CM.cd=function(a){if(!a||a==='~')cwd='~';else if(a==='..')cwd='~';else{var p=cwd==='~'?'~/'+a:cwd+'/'+a;if(files[p]||a==='Documents'||a==='Downloads')cwd=p;else o('cd: not found','err')}document.getElementById('pr').textContent=mp()+cwd+']$'};
+CM.cat=function(a){var d={'README.txt':'Welcome to Astra Terminal!','notes.txt':'1. Buy coffee','config.cfg':'theme=blue'};if(d[a])o(d[a]);else o('cat: not found','err')};
+CM.echo=function(a){o(a)};
+CM.mkdir=function(a){if(!a){o('mkdir: name required','err');return}(files[cwd]=files[cwd]||[]).push(a);o('Created: '+a,'ok')};
+CM.rm=function(a){var f=files[cwd]||[],i=f.indexOf(a);if(i>-1){f.splice(i,1);o('Removed: '+a,'wrn')}else o('rm: not found','err')};
+CM.tree=function(){o(cwd);o('|-- Documents');o('|-- Downloads');o('|-- README.txt')};
+CM.whoami=function(){o(mod())};
+CM.date=function(){o(new Date().toLocaleString(lang==='ru'?'ru-RU':'en-US'))};
+CM.uptime=function(){o('up 3d 2:15, load: 0.12 0.08 0.05')};
+CM.top=function(){o('CPU: 12.5% MEM: 34.2%');o('PID 1 systemd');o('PID 42 bash')};
+CM.ps=function(){o('PID 1 tty1 systemd');o('PID 42 pts/0 bash')};
+CM.df=function(){o('/dev/mmcblk0p2  32G  12G  18G')};
+CM.free=function(){o('Mem: 8192 3120 5072')};
+CM.kill=function(){killed=true;uht();document.getElementById('bsod').classList.add('on');document.getElementById('main').style.display='none';var p=0;var iv=setInterval(function(){p+=Math.floor(Math.random()*8)+3;if(p>=100){p=100;clearInterval(iv)}document.getElementById('bp').textContent=p+'%'},400)};
+CM.uname=function(){o('Linux '+(vA?'vpn-mod':aA?'ai-mod':cA?'code-mod':eA?'evil-mod':mA?'creator-mod':pA?'pro-mod':'astra-mobile')+' 6.1.0-astra')};
+CM.neofetch=function(){o('       __   __  ','asc');o('       |  \\/  |  ','asc');o('       |   M   |  ','asc');o('       |  /M\\  |  ','asc');o('       |_/ M \\_|  ','asc');o('','asc');o('   Astra v'+curVer+' ('+mod()+')','asc');o('   Kernel: 6.1.0-astra','asc');o('   Mode: '+(vA?'VPN':aA?'AI':cA?'Code':eA?'Evil':mA?'Creator':pA?'Pro':'Default'),'asc');o('   VPN: '+(vpnConnected?'Connected ('+vpnServer+')':'Off'),'asc');o('   Created: Franchuk Yaroslav','asc')};
+CM.banner=function(){o('   UPDATE IS '+curVer,'urd');o('   Created by Franchuk Yaroslav','cre')};
+CM.ifconfig=function(){
+  if(vpnConnected){o('tun0: inet '+VPN_SERVERS.find(function(s){return s.name===vpnServer}).ip,'vpm');o('eth0: inet 192.168.1.42')}
+  else{o('eth0: inet 192.168.1.42')}
+};
+CM.ping=function(a){if(!a){o('ping: host required','err');return}var ip=fip(a);o('Connecting to '+a+' ['+ip+']','inf');var i=0;var iv=setInterval(function(){if(i++>=4){clearInterval(iv);return}o('Reply from '+ip+': '+(Math.floor(Math.random()*30+8))+'ms TTL=117')},800)};
+CM.nmap=function(a){if(!a){o('nmap: target required','err');return}o('22/open 80/open 443/open','inf')};
+CM.ssh=function(a){if(!a){o('ssh: host required','err');return}o('Connecting to '+a+'...','inf');setTimeout(function(){o('Connected.','ok')},800)};
+CM.wget=function(a){if(!a){o('wget: url required','err');return}o('Downloading '+a+' OK','ok')};
+CM.curl=function(a){if(!a){o('curl: url required','err');return}o('HTTP/1.1 200 OK')};
+CM.apt=function(a){if(!a){o('apt: package required','err');return}o(a+' installed','ok')};
+CM.color=function(a){if(!a){document.body.className=vA?'vpnmod':aA?'aimod':cA?'codemod':eA?'evilmod':mA?'mod':pA?'promod':'';document.body.style.background='';document.body.style.color='';o('Colors reset','ok');return}if(a.length<2){o('color [BG][FG]','err');return}var bg=a[0].toUpperCase(),fg=a[1].toUpperCase();if(!WC[bg]||!WC[fg]){o('Invalid code. Valid: 0-9, A-F','err');return}document.body.className='';document.body.style.background=WC[bg];document.body.style.color=WC[fg];o('Colors: BG='+WN[bg]+' FG='+WN[fg],'ok')};
+CM.colorlist=function(){o('0=Black 8=Gray 1=Blue 9=LBlue 2=Green A=LGreen 3=Aqua B=LAqua','inf');o('4=Red C=LRed 5=Purple D=LPurple 6=Yellow E=LYellow 7=White F=BWhite','inf');o('Usage: color [BG][FG]','wrn')};
+CM.clear=function(){T.innerHTML=''};
+CM.restart=function(){
+  o('  Restarting Astra Terminal...','wrn');
+  o('  Saving session...','inf');
+  setTimeout(function(){
+    o('  Goodbye!','ok');
+    setTimeout(function(){location.reload()},400);
+  },400);
+};
+CM.reboot=function(){
+  o('  [REBOOT] Initiating system reboot...','wrn');
+  o('  [REBOOT] Stopping services...','inf');
+  var steps=['Stopping network services...','Saving session data...','Unmounting filesystems...','Shutting down kernel...','Power off...'];
+  var i=0;
+  var iv=setInterval(function(){
+    if(i>=steps.length){
+      clearInterval(iv);
+      o('  [REBOOT] Goodbye!','ok');
+      o('','');o('  System will restart...','wrn');
+      setTimeout(function(){
+        o('  .','asc');
+        setTimeout(function(){o('  ..','asc')},300);
+        setTimeout(function(){o('  ...','asc')},600);
+        setTimeout(function(){location.reload()},1200);
+      },500);
+      return;
+    }
+    o('  [REBOOT] '+steps[i],'inf');
+    i++;
+  },500);
+};
+CM.lang=function(a){
+  if(!a){o('Current language: '+lang.toUpperCase(),'inf');o('Usage: lang ru | lang en','wrn');return}
+  a=a.toLowerCase();
+  if(a==='ru'){lang='ru';uht();o('Language: Russian.','ok')}
+  else if(a==='en'){lang='en';uht();o('Language: English.','ok')}
+  else{o('Unknown language. Use: ru, en','err')}
+};
+CM.exit=function(){o('logout','wrn');CI.disabled=true;document.getElementById('send').disabled=true;document.getElementById('upd').disabled=true};
+CM.code=function(){if(!cA){o('Code Mode required. Type: codemode','wrn');return}appCode();o('Astra Code launched.','ok')};
+CM.vst=function(){if(!cA){o('Code Mode required. Type: codemode','wrn');return}appVST();o('VST Studio launched.','ok')};
+CM.codemode=function(a){
+  if(a==='exit'&&cA){exitCodeMode();return}
+  if(cA){o('Already active. Exit: codemode exit','wrn');return}
+  if(eA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  enterCodeMode();
+};
+
+// ===== EVILMOD COMMANDS =====
+CM.evilmod=function(a){
+  if(a==='exit'&&eA){exitEvilMode();return}
+  if(eA){o('Already active. Exit: evilmod exit','wrn');return}
+  if(cA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  enterEvilMode();
+};
+CM.hack=function(a){
+  if(!eA){o('EvilMod required. Type: evilmod','wrn');return}
+  if(!a){o('hack: target required','err');return}
+  o('  [HACK] Targeting '+a+'...','err');
+  o('  [HACK] Scanning ports...','err');
+  var i=0;
+  var steps=['Port scan complete','Exploiting CVE-2024-1337','Bypassing firewall','Injecting payload','Root access gained','Downloading data...'];
+  var iv=setInterval(function(){
+    if(i>=steps.length){clearInterval(iv);o('  [HACK] '+a+' compromised!','err');return}
+    o('  [HACK] '+steps[i],'err');i++;
+  },600);
+};
+CM.crack=function(a){
+  if(!eA){o('EvilMod required. Type: evilmod','wrn');return}
+  if(!a){o('crack: password hash required','err');return}
+  o('  [CRACK] Hash: '+a,'err');
+  o('  [CRACK] Loading rainbow tables...','err');
+  var chars='abcdef0123456789',res='';
+  for(var i=0;i<8;i++)res+=chars[Math.floor(Math.random()*chars.length)];
+  var pct=0;
+  var iv=setInterval(function(){
+    pct+=Math.floor(Math.random()*20+5);
+    if(pct>=100){pct=100;clearInterval(iv);o('  [CRACK] Password found: '+res,'err');return}
+    o('  [CRACK] Cracking... '+pct+'%','err');
+  },400);
+};
+CM.inject=function(){
+  if(!eA){o('EvilMod required. Type: evilmod','wrn');return}
+  o('  [INJECT] Preparing payload...','err');
+  o('  [INJECT] <scr'+'ipt>evil_code()</scr'+'ipt>','err');
+  setTimeout(function(){o('  [INJECT] Code injected successfully!','err');document.getElementById('bg').textContent='INJECTED'},800);
+};
+CM.corrupt=function(){
+  if(!eA){o('EvilMod required. Type: evilmod','wrn');return}
+  o('  [CORRUPT] Corrupting display...','err');
+  var glyphs='X#%@&*!?<>{}[]|/\\';
+  for(var i=0;i<5;i++){
+    var line='';
+    for(var j=0;j<40;j++)line+=glyphs[Math.floor(Math.random()*glyphs.length)];
+    o(line,'err');
+  }
+  o('  [CORRUPT] Display corrupted!','err');
+};
+CM.scare=function(){
+  if(!eA){o('EvilMod required. Type: evilmod','wrn');return}
+  o('','');o('  SYSTEM COMPROMISED','err');
+  o('  ALL DATA ENCRYPTED','err');
+  o('  PAY 0.5 BTC TO RECOVER','err');
+  o('  OR SAY GOODBYE TO FILES','err');o('');
+  o('  Just kidding! - EvilMod','err');
+};
+
+// ===== CREATOR COMMANDS =====
+CM.creatormode=function(a){
+  if(a==='exit'&&mA){exitCreatorMode();return}
+  if(mA){o('Already active. Exit: creatormode exit','wrn');return}
+  if(cA||eA||pA||aA||vA){o('Exit current mode first.','wrn');return}
+  enterCreatorMode();
+};
+CM.create=function(a){
+  if(!mA){o('CreatorMode required. Type: creatormode','wrn');return}
+  if(!a){o('create: file name required','err');return}
+  (files[cwd]=files[cwd]||[]).push(a);
+  o('  Created: '+a,'ok');o('  File ready for editing.','inf');
+};
+CM.paint=function(){
+  if(!mA){o('CreatorMode required. Type: creatormode','wrn');return}
+  appPaint();o('  Paint app launched.','ok');
+};
+CM.theme=function(a){
+  if(!mA){o('CreatorMode required. Type: creatormode','wrn');return}
+  if(!a){o('theme: name required (dark/light/purple/green)','err');return}
+  var themes={'dark':{bg:'#0a0a1a',fg:'#fff',cls:''},'light':{bg:'#fff',fg:'#000',cls:''},'purple':{bg:'#1a0033',fg:'#cc88ff',cls:'mod'},'green':{bg:'#001a0a',fg:'#00ff88',cls:'promod'}};
+  var t=themes[a];
+  if(!t){o('theme: unknown. Options: dark, light, purple, green','err');return}
+  document.body.className=t.cls;document.body.style.background=t.bg;document.body.style.color=t.fg;
+  o('  Theme changed to: '+a,'ok');
+};
+CM.music=function(){
+  if(!mA){o('CreatorMode required. Type: creatormode','wrn');return}
+  appMusic();o('  Beat Maker launched.','ok');
+};
+
+// ===== PRO COMMANDS =====
+CM.promode=function(a){
+  if(a==='exit'&&pA){exitProMode();return}
+  if(pA){o('Already active. Exit: promode exit','wrn');return}
+  if(cA||eA||mA||aA||vA){o('Exit current mode first.','wrn');return}
+  enterProMode();
+};
+CM.benchmark=function(){
+  if(!pA){o('ProMode required. Type: promode','wrn');return}
+  o('  [BENCH] Running benchmark...','ok');
+  var tests=['CPU Single-thread','CPU Multi-thread','Memory Read','Memory Write','Disk Seq. Read','Disk Random Write','GPU Render'];
+  var i=0;
+  var iv=setInterval(function(){
+    if(i>=tests.length){clearInterval(iv);o('');o('  BENCHMARK COMPLETE','ok');o('  Score: 12,847 pts','ok');o('  Rank: A+ (Top 5%)','ok');return}
+    var score=Math.floor(Math.random()*3000+1000);
+    o('  [BENCH] '+tests[i]+': '+score+' pts','ok');i++;
+  },500);
+};
+CM.optimize=function(){
+  if(!pA){o('ProMode required. Type: promode','wrn');return}
+  o('  [OPT] Optimizing system...','ok');
+  var steps=['Clearing cache...','Defragmenting disk...','Optimizing memory...','Compacting registry...','Flushing DNS...','Cleaning temp files...'];
+  var i=0;
+  var iv=setInterval(function(){
+    if(i>=steps.length){clearInterval(iv);o('  [OPT] System optimized! Performance +15%','ok');return}
+    o('  [OPT] '+steps[i]+' OK','ok');i++;
+  },400);
+};
+CM.analyze=function(){
+  if(!pA){o('ProMode required. Type: promode','wrn');return}
+  o('  [ANALYZE] System performance analysis:','ok');
+  o('  CPU Health:     85%','ok');
+  o('  Memory Health:  93%','ok');
+  o('  Disk Health:    78%','ok');
+  o('  Network Health: 90%','ok');
+  o('  Battery Health: 98%','ok');
+  o('  Overall: 88.8% - Good','ok');
+  o('  Recommendation: Disk I/O could be optimized.','ok');
+};
+
+// ===== AI COMMANDS =====
+CM.aimode=function(a){
+  if(a==='exit'&&aA){exitAIMode();return}
+  if(aA){o('Already active. Exit: aimode exit','wrn');return}
+  if(cA||eA||mA||pA||vA){o('Exit current mode first.','wrn');return}
+  enterAIMode();
+};
+CM.ask=function(a){
+  if(!aA){o('AI Mode required. Type: aimode','wrn');return}
+  if(!a){o('ask: question required','err');return}
+  o('  [YOU] '+a,'inf');
+  o('  [AI] Thinking...','aim');
+  setTimeout(function(){
+    var ql=a.toLowerCase();
+    var resp=AI_RESPONSES['default'];
+    for(var key in AI_RESPONSES){if(ql.indexOf(key)>=0){resp=AI_RESPONSES[key];break}}
+    o('  [AI] '+resp,'aim');
+  },600+Math.random()*800);
+};
+CM.think=function(a){
+  if(!aA){o('AI Mode required. Type: aimode','wrn');return}
+  if(!a){o('think: topic required','err');return}
+  o('  [AI] Processing topic: '+a,'aim');
+  setTimeout(function(){
+    var tl=a.toLowerCase();
+    var resp=AI_THINKING_TOPICS['default'];
+    for(var key in AI_THINKING_TOPICS){if(tl.indexOf(key)>=0){resp=AI_THINKING_TOPICS[key];break}}
+    o('  [AI] '+resp,'aim');
+  },800+Math.random()*600);
+};
+CM.summarize=function(a){
+  if(!aA){o('AI Mode required. Type: aimode','wrn');return}
+  if(!a){o('summarize: text required','err');return}
+  o('  [AI] Summarizing...','aim');
+  setTimeout(function(){
+    var prefix=AI_SUMMARIZE_PREFIXES[Math.floor(Math.random()*AI_SUMMARIZE_PREFIXES.length)];
+    var words=a.split(/\s+/);
+    var short=[];
+    for(var i=0;i<Math.min(words.length,8);i++)short.push(words[i]);
+    var summary=prefix+short.join(' ')+'...';
+    if(words.length>8)summary+=' ('+words.length+' words condensed to '+short.length+')';
+    o('  [AI] '+summary,'aim');
+  },500+Math.random()*500);
+};
+CM.chat=function(){
+  if(!aA){o('AI Mode required. Type: aimode','wrn');return}
+  appAIChat();
+  o('  AI Chat window opened.','aim');
+};
+
+// ===== VPN COMMANDS =====
+CM.vpnmode=function(a){
+  if(a==='exit'&&vA){exitVpnMode();return}
+  if(vA){o('Already active. Exit: vpnmode exit','wrn');return}
+  if(cA||eA||mA||pA||aA){o('Exit current mode first.','wrn');return}
+  enterVpnMode();
+};
+CM.connect=function(a){
+  if(!vA){o('VPN Mode required. Type: vpnmode','wrn');return}
+  if(!a){o('connect: server name required','err');o('Use "servers" to see available servers.','inf');return}
+  var found=VPN_SERVERS.find(function(s){
+    return s.name.toLowerCase()===a.toLowerCase()||s.code.toLowerCase()===a.toLowerCase();
+  });
+  if(!found){o('  [VPN] Server not found: '+a,'err');o('  [VPN] Use "servers" to list available servers.','inf');return}
+  if(vpnConnected&&vpnServer===found.name){o('  [VPN] Already connected to '+found.name,'wrn');return}
+  if(vpnConnected){o('  [VPN] Disconnecting from '+vpnServer+'...','wrn')}
+  o('  [VPN] Connecting to '+found.name+' ('+found.ip+')...','vpm');
+  o('  [VPN] Establishing encrypted tunnel...','vpm');
+  o('  [VPN] Handshake: AES-256-GCM...','vpm');
+  setTimeout(function(){
+    vpnConnected=true;vpnServer=found.name;vpnPing=found.ping;
+    o('  [VPN] Connected!','vpm');
+    o('  [VPN] Server: '+found.name+' ['+found.code+']','vpm');
+    o('  [VPN] IP: '+found.ip,'vpm');
+    o('  [VPN] Ping: '+found.ping+'ms | Load: '+found.load+'%','vpm');
+    o('  [VPN] Encryption: AES-256-GCM','vpm');
+    o('  [VPN] Your traffic is now secured.','ok');
+  },1000);
+};
+CM.disconnect=function(){
+  if(!vA){o('VPN Mode required. Type: vpnmode','wrn');return}
+  if(!vpnConnected){o('  [VPN] Not connected.','wrn');return}
+  o('  [VPN] Disconnecting from '+vpnServer+'...','wrn');
+  o('  [VPN] Closing tunnel...','inf');
+  setTimeout(function(){
+    vpnConnected=false;vpnServer='none';vpnPing=0;
+    o('  [VPN] Disconnected.','wrn');
+    o('  [VPN] Traffic is no longer secured.','wrn');
+  },500);
+};
+CM.vpnstatus=function(){
+  if(!vA){o('VPN Mode required. Type: vpnmode','wrn');return}
+  o('  [VPN] === VPN STATUS ===','vpm');
+  if(vpnConnected){
+    var s=VPN_SERVERS.find(function(sv){return sv.name===vpnServer});
+    o('  [VPN] Status:     CONNECTED','vpm');
+    o('  [VPN] Server:    '+vpnServer,'vpm');
+    if(s){o('  [VPN] IP:         '+s.ip,'vpm');o('  [VPN] Ping:       '+s.ping+'ms','vpm');o('  [VPN] Load:       '+s.load+'%','vpm')}
+    o('  [VPN] Encryption: AES-256-GCM','vpm');
+    o('  [VPN] Protocol:   OpenVPN UDP','vpm');
+    o('  [VPN] Uptime:     '+(Math.floor(Math.random()*60)+5)+'m','vpm');
+  }else{
+    o('  [VPN] Status:     DISCONNECTED','err');
+    o('  [VPN] Server:     none','err');
+    o('  [VPN] Use "connect <server>" to connect.','inf');
+  }
+};
+CM.servers=function(){
+  if(!vA){o('VPN Mode required. Type: vpnmode','wrn');return}
+  o('  [VPN] === AVAILABLE SERVERS ===','vpm');o('');
+  VPN_SERVERS.forEach(function(s){
+    var mark=vpnServer===s.name?' >>>':'    ';
+    o(mark+' ['+s.code+'] '+s.name+' - '+s.ping+'ms, Load: '+s.load+'%','vpm');
+  });
+  o('');
+  o('  Use: connect <server_name>','inf');
+  o('  Example: connect Netherlands','inf');
+};
+CM.vpn=function(){
+  if(!vA){o('VPN Mode required. Type: vpnmode','wrn');return}
+  appVpn();
+  o('  VPN GUI window opened.','vpm');
+};
+
+// ===== UPDATE =====
+function doUpdate(f){
+  if(!f.files||!f.files.length){o('No file selected.','wrn');return}
+  var fn=f.files[0].name,sz=(f.files[0].size/1024).toFixed(1);
+  o('','');o('=== Updating from: '+fn+' ===','urd');
+  o('  Size: '+sz+' KB','inf');o('','');o('  [1/5] Extract...','inf');
+  setTimeout(function(){o('  [1/5] OK','ok');o('  [2/5] Verify...','inf');
+  setTimeout(function(){o('  [2/5] OK','ok');o('  [3/5] Install...','inf');
+  setTimeout(function(){o('  [3/5] OK','ok');o('  [4/5] Cleanup...','inf');
+  setTimeout(function(){o('  [4/5] OK','ok');o('  [5/5] Finalize...','inf');
+  setTimeout(function(){o('  [5/5] OK','ok');o('','');o('  UPDATE COMPLETE!','ok');o('  '+curVer+' -> 2.6','ok');o('  Restart to apply.','wrn');o('','');f.value='';
+  },600);},500);},500);},500);},500);
+}
+
+// ===== SEND =====
+function snd(){
+  var v=CI.value.trim();
+  if(killed)return;
+  if(!v){o(mp()+cwd+']$');return}
+  hist.push(v);hi=hist.length;
+  o(mp()+cwd+']$ '+v);
+  var p=v.split(/\s+/),c=p[0].toLowerCase(),arg=p.slice(1).join(' ');
+  if(CM[c])CM[c](arg);
+  else o(mod()+': '+c+': not found. Type "help".','err');
+  CI.value='';
+}
+
+document.addEventListener('keydown',function(e){
+  if(!CI)return;
+  var activeEl=document.activeElement;
+  if(activeEl&&activeEl!==CI&&(activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'))return;
+  if(e.key==='Enter'&&document.activeElement===CI)snd();
+  else if(e.key==='ArrowUp'&&hist.length){hi=Math.max(0,hi-1);CI.value=hist[hi]}
+  else if(e.key==='ArrowDown'&&hist.length){hi=Math.min(hist.length,hi+1);CI.value=hist[hi]||''}
+});
+
+document.addEventListener('click',function(e){
+  if(!CI)return;
+  if(e.target.closest('.aw'))return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'||e.target.tagName==='BUTTON')return;
+  if(CI&&!CI.disabled&&document.getElementById('main').style.display==='flex')CI.focus();
+});
+</script>
+</body>
+</html>
