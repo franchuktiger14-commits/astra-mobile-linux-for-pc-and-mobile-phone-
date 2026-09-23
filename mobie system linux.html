@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astra Terminal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#012456;color:#fff;font-family:'Cascadia Code','Consolas',monospace;height:100vh;overflow:hidden}
+#boot-screen{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+.boot-logo{font-size:14px;color:#0078D4;margin-bottom:20px;letter-spacing:2px;text-align:center;font-weight:bold}
+.boot-logo pre{font-size:8px;line-height:1.1;color:#0078D4;text-align:left;margin:0 auto;width:fit-content}
+.boot-bar{width:220px;height:4px;background:#1a1a2a;border-radius:2px;overflow:hidden;margin:8px 0}
+.boot-fill{height:100%;background:linear-gradient(90deg,#0078D4,#16c60c);width:0;transition:width .3s;border-radius:2px}
+.boot-pct{font-size:11px;color:#666;margin-bottom:12px}
+.boot-log{width:220px;height:100px;overflow-y:auto;font-size:10px;color:#555;line-height:1.4}
+.boot-log div{animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a1a 0%,#0d1a2e 50%,#0a0a1a 100%);z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.login-box{background:rgba(10,20,40,.95);border:1px solid rgba(0,120,212,.4);border-radius:12px;padding:28px 32px;text-align:center;box-shadow:0 8px 40px rgba(0,120,212,.15);max-width:90vw}
+.login-icon{font-size:36px;margin-bottom:12px}
+.login-title{color:#0078D4;font-size:18px;font-weight:bold;margin-bottom:6px;letter-spacing:1px}
+.login-sub{color:#666;font-size:12px;margin-bottom:20px}
+.login-input{background:rgba(0,0,0,.4);border:2px solid rgba(0,120,212,.3);color:#fff;font-family:monospace;font-size:14px;padding:10px 16px;border-radius:8px;outline:none;text-align:center;width:200px;max-width:80vw;letter-spacing:3px}
+.login-input:focus{border-color:#0078D4}
+.login-btn{background:#0078D4;color:#fff;border:none;font-family:monospace;font-size:13px;font-weight:bold;padding:10px 32px;border-radius:8px;cursor:pointer;margin-top:14px}
+.login-btn:active{transform:scale(.95)}
+.login-err{color:#e74856;font-size:12px;margin-top:10px;height:18px}
+.login-hint{color:#444;font-size:10px;margin-top:16px}
+#res-wrap{position:fixed;inset:0;display:flex;justify-content:center;align-items:flex-start;overflow:auto;z-index:5}
+#main{display:none;flex-direction:column;height:100vh;position:relative}
+#main.res-active{border:2px solid #0078D4;box-shadow:0 0 20px rgba(0,120,212,.3)}
+body.mod{background:#1a0033;color:#cc88ff}
+body.evilmod{background:#0a0000;color:#ff0033}
+body.codemod{background:#0a0a12;color:#dcdcdc}
+body.promod{background:#001a0a;color:#00ff88}
+body.aimod{background:#001a2e;color:#00ccff}
+body.vpnmod{background:#0d0a00;color:#ff8800}
+#bg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2.5rem;color:rgba(255,255,255,.04);font-weight:bold;pointer-events:none;z-index:0;white-space:nowrap}
+#holo{position:fixed;top:6px;right:6px;width:130px;border:1px solid rgba(0,120,212,.4);border-radius:4px;background:rgba(0,20,50,.92);font-size:9px;z-index:50;pointer-events:none}
+.holo-h{text-align:center;font-weight:bold;padding:3px;border-bottom:1px solid rgba(0,120,212,.25)}
+.holo-m{height:80px;overflow:hidden;position:relative}
+.hc{position:absolute;width:8px;text-align:center;animation:drp linear infinite}
+@keyframes drp{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+.hd{background:linear-gradient(180deg,#00ff00,#00ff88);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold}
+.holo-s{display:flex;justify-content:space-around;padding:3px;border-top:1px solid rgba(0,120,212,.25)}
+.blk{animation:blk 1.5s infinite}
+@keyframes blk{0%,49%{opacity:1}50%,100%{opacity:.3}}
+.holo-t{padding:2px;border-top:1px solid rgba(0,120,212,.25)}
+.holo-r{display:flex;justify-content:space-between;padding:1px 6px}
+#term{flex:1;overflow-y:auto;padding:8px;z-index:10;font-size:12px}
+.ln{margin-bottom:1px;white-space:pre-wrap;word-break:break-word}
+.ok{color:#16c60c}.err{color:#e74856}.inf{color:#61d6d6}.wrn{color:#f9f1a5}
+.asc{color:#61d6d6;line-height:1.1}.cre{color:rgba(255,255,255,.3);font-size:10px;font-style:italic}
+.urd{color:#e74856;font-weight:bold}.cmp{color:#007acc;font-weight:bold}
+.aim{color:#00ccff;font-weight:bold}.vpm{color:#ff8800;font-weight:bold}
+.qrm{color:#b388ff;font-weight:bold}
+.tbl{color:#61d6d6}.tbl-h{font-weight:bold;color:#0078D4}.tbl-s{color:#f9f1a5}
+#bar{display:flex;gap:4px;padding:6px;background:#001e50;border-top:2px solid #0078D4;z-index:20}
+#bar .pr{font-weight:bold;white-space:nowrap;padding-top:4px;font-size:11px}
+#bar input{flex:1;background:#001a3a;border:1px solid #0078D4;color:inherit;font-family:monospace;padding:5px;outline:none;font-size:12px;min-width:0}
+#send{background:#0078D4;color:#fff;border:none;font-family:monospace;font-weight:bold;padding:5px 12px;cursor:pointer;font-size:12px}
+#upd{background:#16c60c;color:#000;border:none;font-family:monospace;font-weight:bold;padding:5px 12px;cursor:pointer;font-size:12px}
+#kbk-btn{background:#b388ff;color:#000;border:none;font-family:monospace;font-weight:bold;padding:5px 12px;cursor:pointer;font-size:12px}
+#send:active,#upd:active,#kbk-btn:active{transform:scale(.95)}
+#bsod{display:none;position:fixed;inset:0;background:#0078D7;color:#fff;z-index:9999;padding:10% 8%;flex-direction:column;font-family:'Segoe UI',sans-serif}
+#bsod.on{display:flex}
+#al{position:fixed;inset:0;z-index:100;pointer-events:none}
+.aw{position:absolute;background:#0a0a1a;border:1px solid rgba(0,120,212,.4);border-radius:6px;max-width:calc(100vw - 16px);max-height:75vh;display:flex;flex-direction:column;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden}
+.ab{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:rgba(0,120,212,.1);cursor:move;font-weight:bold;font-size:12px}
+.ax{background:none;border:none;color:inherit;font-size:14px;cursor:pointer;opacity:.6;padding:0 4px}
+.ax:hover{opacity:1;color:#e74856}
+.abd{padding:0;overflow-y:auto;flex:1;font-size:11px;line-height:1.4}
+.bt{background:rgba(0,120,212,.15);border:1px solid rgba(0,120,212,.4);color:inherit;font-family:monospace;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold}
+.qr-root{background:#0a0a1a;color:#fff;font-family:'Segoe UI',sans-serif;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.qr-top{background:#1a0a2a;padding:8px 12px;border-bottom:1px solid #b388ff44;font-size:12px;font-weight:bold;color:#b388ff}
+.qr-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;align-items:center}
+.qr-img-box{background:#fff;border:6px solid #fff;border-radius:8px;padding:4px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.qr-info{color:#b388ff;font-size:11px;margin-top:10px;text-align:center;word-break:break-all;max-width:90%;line-height:1.5}
+.qr-type{color:#61d6d6;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-top:6px}
+.qr-wait{color:#888;font-size:12px;margin:20px 0}
+.fx-root{background:#0a0a0a;color:#ddd;font-family:'Segoe UI',sans-serif;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.fx-toolbar{display:flex;align-items:center;gap:4px;padding:6px 8px;background:#141414;border-bottom:1px solid #333}
+.fx-btn{background:#2a2a2a;border:none;color:#ccc;width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.fx-url{flex:1;background:#0a0a0a;border:1px solid #444;color:#ddd;font-family:monospace;font-size:12px;padding:5px 10px;border-radius:4px;outline:none}
+.fx-url:focus{border-color:#ff7139}
+.fx-go{background:#ff7139;color:#fff;border:none;font-weight:bold;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:12px}
+.fx-content{flex:1;overflow:auto;background:#fff;position:relative}
+.fx-nopage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#666;font-family:monospace;text-align:center}
+.fx-nopage .fx-logo{font-size:40px;margin-bottom:12px;color:#ff7139;font-weight:bold}
+.fx-bookmarks{display:flex;gap:6px;padding:4px 8px;background:#1a1a1a;border-bottom:1px solid #333;flex-wrap:wrap}
+.fx-bm{padding:3px 8px;background:#222;border-radius:3px;font-size:10px;color:#aaa;cursor:pointer}
+.fx-bm:hover{background:#333;color:#fff}
+.fx-status{height:20px;background:#1a1a1a;border-top:1px solid #333;display:flex;align-items:center;padding:0 8px;font-size:10px;color:#666}
+#kb{display:none;flex-direction:column;background:#001a3a;border-top:2px solid #0078D4;padding:4px 3px;gap:3px;z-index:25}
+#kb.on{display:flex}
+.kbr{display:flex;gap:3px;justify-content:center}
+.kbk{background:#002a5a;border:1px solid #0066cc;color:#fff;font-family:monospace;font-size:12px;padding:7px 4px;border-radius:4px;cursor:pointer;min-width:30px;text-align:center;user-select:none;-webkit-tap-highlight-color:transparent}
+.kbk:active{background:#0078D4;transform:scale(.88)}
+.kbk.fn{background:#1a1a2a;font-size:10px}
+.kbk.sp{min-width:80px}.kbk.wide{min-width:50px}
+.kbk.lang{background:#1a3a00;border-color:#66cc00;font-weight:bold;font-size:11px;min-width:50px}
+.kbk.snd{background:#3a001a;border-color:#cc0066;font-weight:bold;font-size:11px;min-width:44px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#3e3e42;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="boot-screen">
+<div class="boot-logo"><pre>    ___   ___      ___
+   / _ | / __\___ / _|
+  / __ |/ /__/ -_) _|
+ /_/ |_\___/\__/_|</pre>ASTRA OS v2.5</div>
+<div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
+<div class="boot-pct" id="boot-pct">0%</div>
+<div class="boot-log" id="boot-log"></div>
+</div>
+<div id="login-screen">
+<div class="login-box">
+<div class="login-icon">key</div>
+<div class="login-title">ASTRA TERMINAL</div>
+<div class="login-sub">Enter password to access system</div>
+<input type="password" class="login-input" id="pwd" placeholder="--------" autocomplete="off">
+<br><button class="login-btn" onclick="tryLogin()">LOGIN</button>
+<div class="login-err" id="pwd-err"></div>
+<div class="login-hint">Astra Terminal v2.5 - Franchuk Yaroslav</div>
+</div>
+</div>
+<div id="res-wrap"><div id="main">
+<div id="bg">ASTRA TERMINAL</div>
+<div id="holo">
+<div class="holo-h">ASTRA SYS</div>
+<div class="holo-m" id="hm"></div>
+<div class="holo-s"><span class="blk">ONLINE</span><span>v2.5</span><span class="blk">NET</span></div>
+<div class="holo-t">
+<div class="holo-r"><span>KILL</span><span style="color:#e74856" id="h-k">OFF</span></div>
+<div class="holo-r"><span>LANG</span><span style="color:#16c60c" id="h-lang">RU</span></div>
+<div class="holo-r"><span id="h-l">ASTRA OS</span><span style="color:#0078D4" id="h-m">ON</span></div>
+<div class="holo-r"><span>RES</span><span style="color:#61d6d6" id="h-res">AUTO</span></div>
+</div></div>
+<div id="bsod"><div style="font-size:80px">:(</div><div style="font-size:18px;max-width:90vw;margin-top:12px">На вашем устройстве возникла проблема, и его необходимо перезапустить.</div><div id="bp" style="margin-top:16px">0%</div><div style="margin-top:16px;font-size:12px">https://astra.com/stopcode<br>CRITICAL_PROCESS_DIED</div></div>
+<div id="al"></div>
+<div id="term"></div>
+<div id="kb">
+<div class="kbr">
+<div class="kbk fn" onclick="kbKey('Esc')">Esc</div>
+<div class="kbk fn" onclick="kbKey('Tab')">Tab</div>
+<div class="kbk fn" onclick="kbKey('ArrowLeft')">&#8592;</div>
+<div class="kbk fn" onclick="kbKey('ArrowDown')">&#8595;</div>
+<div class="kbk fn" onclick="kbKey('ArrowUp')">&#8593;</div>
+<div class="kbk fn" onclick="kbKey('ArrowRight')">&#8594;</div>
+<div class="kbk fn" onclick="kbKey('Backspace')">&#9003;</div>
+<div class="kbk fn" onclick="kbKey('Enter')">&#8617;</div>
+<div class="kbk lang" id="kb-lang-btn" onclick="kbToggleLang()">RU</div>
+<div class="kbk snd" id="kb-snd-btn" onclick="kbToggleSnd()">SND</div>
+</div>
+<div class="kbr" id="kb-r1"><div class="kbk" onclick="kbKey('1')">1</div><div class="kbk" onclick="kbKey('2')">2</div><div class="kbk" onclick="kbKey('3')">3</div><div class="kbk" onclick="kbKey('4')">4</div><div class="kbk" onclick="kbKey('5')">5</div><div class="kbk" onclick="kbKey('6')">6</div><div class="kbk" onclick="kbKey('7')">7</div><div class="kbk" onclick="kbKey('8')">8</div><div class="kbk" onclick="kbKey('9')">9</div><div class="kbk" onclick="kbKey('0')">0</div></div>
+<div class="kbr" id="kb-r2"><div class="kbk" onclick="kbKey('q')">q</div><div class="kbk" onclick="kbKey('w')">w</div><div class="kbk" onclick="kbKey('e')">e</div><div class="kbk" onclick="kbKey('r')">r</div><div class="kbk" onclick="kbKey('t')">t</div><div class="kbk" onclick="kbKey('y')">y</div><div class="kbk" onclick="kbKey('u')">u</div><div class="kbk" onclick="kbKey('i')">i</div><div class="kbk" onclick="kbKey('o')">o</div><div class="kbk" onclick="kbKey('p')">p</div></div>
+<div class="kbr" id="kb-r3"><div class="kbk" onclick="kbKey('a')">a</div><div class="kbk" onclick="kbKey('s')">s</div><div class="kbk" onclick="kbKey('d')">d</div><div class="kbk" onclick="kbKey('f')">f</div><div class="kbk" onclick="kbKey('g')">g</div><div class="kbk" onclick="kbKey('h')">h</div><div class="kbk" onclick="kbKey('j')">j</div><div class="kbk" onclick="kbKey('k')">k</div><div class="kbk" onclick="kbKey('l')">l</div><div class="kbk wide" onclick="kbKey('-')">-</div></div>
+<div class="kbr" id="kb-r4"><div class="kbk fn" onclick="kbShift()">SHIFT</div><div class="kbk" onclick="kbKey('z')">z</div><div class="kbk" onclick="kbKey('x')">x</div><div class="kbk" onclick="kbKey('c')">c</div><div class="kbk" onclick="kbKey('v')">v</div><div class="kbk" onclick="kbKey('b')">b</div><div class="kbk" onclick="kbKey('n')">n</div><div class="kbk" onclick="kbKey('m')">m</div><div class="kbk" onclick="kbKey('/')">/</div><div class="kbk" onclick="kbKey('.')">.</div></div>
+<div class="kbr"><div class="kbk" onclick="kbKey(' ')">_</div><div class="kbk sp" onclick="kbKey(' ')">SPACE</div><div class="kbk" onclick="kbKey('|')">|</div><div class="kbk" onclick="kbKey(' ')">_</div><div class="kbk" onclick="kbKey('~')">~</div><div class="kbk" onclick="kbKey('@')">@</div></div>
+</div>
+<div id="bar">
+<span class="pr" id="pr">[astra@mobile ~]$</span>
+<input id="ci" autocomplete="off" placeholder="...">
+<button id="kbk-btn" onclick="kbToggle()">KB</button>
+<button id="send" onclick="snd()">SEND</button>
+<button id="upd" onclick="document.getElementById('upf').click()">UPD</button>
+<input type="file" id="upf" style="display:none" onchange="doUpdate(this)">
+</div>
+</div></div>
+<script>
+var T,CI,AL,hist=[],hi=-1,cwd='~',killed=false;
+var mA=false,eA=false,cA=false,pA=false,aA=false,vA=false,wc=0;
+var lang='ru',curVer='2.5',kbShiftOn=false,kbLang='ru',kbSndOn=true,audioCtx=null,PING_IV=null;
+var curRes={id:0,name:'AUTO',w:0,h:0,ratio:'auto'};
+var VST_WI=null,PMUSIC=null,VST_K={vol:65,gain:40,filter:72,rez:30,atk:10,dec:50,sus:60,rel:40};
+var vpnConnected=false,vpnServer='none',vpnPing=0;
+var RU_MAP={'q':'й','w':'ц','e':'у','r':'к','t':'е','y':'н','u':'г','i':'ш','o':'щ','p':'з','a':'ф','s':'ы','d':'в','f':'а','g':'п','h':'р','j':'о','k':'л','l':'д','z':'я','x':'ч','c':'с','v':'м','b':'и','n':'т','m':'ь','Q':'Й','W':'Ц','E':'У','R':'К','T':'Е','Y':'Н','U':'Г','I':'Ш','O':'Щ','P':'З','A':'Ф','S':'Ы','D':'В','F':'А','G':'П','H':'Р','J':'О','K':'Л','L':'Д','Z':'Я','X':'Ч','C':'С','V':'М','B':'И','N':'Т','M':'Ь'};
+var RU2=['й','ц','у','к','е','н','г','ш','щ','з'],RU3=['ф','ы','в','а','п','р','о','л','д'],RU4=['я','ч','с','м','и','т','ь'];
+var EN2=['q','w','e','r','t','y','u','i','o','p'],EN3=['a','s','d','f','g','h','j','k','l'],EN4=['z','x','c','v','b','n','m'];
+var RES=[{id:1,name:'VGA',w:640,h:480,ratio:'4:3'},{id:2,name:'SVGA',w:800,h:600,ratio:'4:3'},{id:3,name:'XGA',w:1024,h:768,ratio:'4:3'},{id:6,name:'720p HD',w:1280,h:720,ratio:'16:9'},{id:8,name:'1080p FHD',w:1920,h:1080,ratio:'16:9'},{id:12,name:'4K UHD',w:3840,h:2160,ratio:'16:9'},{id:16,name:'AUTO',w:0,h:0,ratio:'auto'}];
+var VPNS=[{name:'Netherlands',code:'NL',ip:'185.107.56.1',ping:12},{name:'Germany',code:'DE',ip:'193.176.84.2',ping:18},{name:'USA',code:'US',ip:'104.207.144.3',ping:89},{name:'Japan',code:'JP',ip:'133.18.201.4',ping:156},{name:'UK',code:'UK',ip:'51.89.20.6',ping:25},{name:'France',code:'FR',ip:'51.158.144.7',ping:22}];
+var files={'~':['Documents','Downloads','README.txt','.bashrc','config.cfg']};
+var AI={'hello':'Hello! I am Astra AI.','what is ai':'AI is a branch of computer science.','default':'Interesting. Could you provide more details?'};
+var FX_BM=[{n:'Google',u:'https://google.com'},{n:'YouTube',u:'https://youtube.com'},{n:'GitHub',u:'https://github.com'},{n:'Wikipedia',u:'https://wikipedia.org'},{n:'Yandex',u:'https://yandex.ru'}];
+var CM={};
+
+/* BOOT */
+(function(){var f=document.getElementById('boot-fill'),p=document.getElementById('boot-pct'),l=document.getElementById('boot-log');
+var m=['Initializing kernel 6.1.0-astra...','Loading device drivers...','Mounting filesystem...','Starting network services...','Loading Astra Terminal v2.5...','Checking security module...','Loading EvilMod...','Loading CreatorMode...','Loading ProMode...','Loading AI Mode...','Loading VPN Mode...','Loading resolution manager...','Loading QR Code module...','Loading keyboard module...','Loading Russian layout...','Loading sound module...','Loading Firefox browser...','Loading VST engine...','Loading AI responses...','Loading VPN servers...','Loading color themes...','Loading holographic display...','Optimizing for mobile...','Initializing audio...','System ready.'];
+var i=0;var iv=setInterval(function(){if(i>=m.length){clearInterval(iv);setTimeout(function(){var s=document.getElementById('boot-screen');s.style.opacity='0';setTimeout(function(){s.style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('pwd').focus()},500)},300);return}l.innerHTML+='<div>'+m[i]+'</div>';l.scrollTop=l.scrollHeight;var prog=Math.round((i+1)/m.length*100);f.style.width=prog+'%';p.textContent=prog+'%';i++},120)})();
+
+function tryLogin(){var v=document.getElementById('pwd').value;if(v==='key2134'){document.getElementById('pwd-err').textContent='';var l=document.getElementById('login-screen');l.style.opacity='0';setTimeout(function(){l.style.display='none';startTerminal()},400)}else{document.getElementById('pwd-err').textContent='ACCESS DENIED';document.getElementById('pwd').value='';document.getElementById('pwd').focus()}}
+document.getElementById('pwd').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
+
+/* AUDIO */
+function initAudio(){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){audioCtx=null}}
+function playClick(){if(!kbSndOn)return;if(!audioCtx)initAudio();if(!audioCtx)return;try{var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='square';o.frequency.value=1200+Math.random()*400;g.gain.setValueAtTime(0.08,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.05);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.05)}catch(e){}}
+function playEnter(){if(!kbSndOn)return;if(!audioCtx)initAudio();if(!audioCtx)return;try{var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(800,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(400,audioCtx.currentTime+0.1);g.gain.setValueAtTime(0.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.1)}catch(e){}}
+
+function startTerminal(){T=document.getElementById('term');CI=document.getElementById('ci');AL=document.getElementById('al');document.getElementById('main').style.display='flex';CI.readOnly=true;initHolo();printBanner();initAudio();kbToggle()}
+function o(t,c){var d=document.createElement('div');d.className='ln'+(c?' '+c:'');d.textContent=t;T.appendChild(d);T.scrollTop=T.scrollHeight}
+function fip(h){var s=0;for(var i=0;i<h.length;i++)s=(s*31+h.charCodeAt(i))&0xFFFF;return((s>>8)&0xFF)+'.'+(s&0xFF)+'.'+((s*7)&0xFF)+'.'+((s*13+1)&0xFF)}
+function mod(){return vA?'vpn':aA?'ai':cA?'code':eA?'evil':mA?'creator':pA?'pro':'astra'}
+function mp(){return vA?'[vpn@astra ':aA?'[ai@astra ':cA?'[code@astra ':eA?'[evil@dark ':mA?'[creator@mod ':pA?'[pro@astra ':'[astra@mobile '}
+
+function uht(){document.getElementById('h-k').textContent=killed?'ON':'OFF';document.getElementById('h-k').style.color=killed?'#16c60c':'#e74856';document.getElementById('h-lang').textContent=lang.toUpperCase();var l=document.getElementById('h-l'),m=document.getElementById('h-m');if(vA){l.textContent='VPN';m.style.color='#ff8800'}else if(aA){l.textContent='AI';m.style.color='#00ccff'}else if(cA){l.textContent='CODE';m.style.color='#007acc'}else if(eA){l.textContent='EVIL';m.style.color='#f03'}else if(mA){l.textContent='CREATOR';m.style.color='#c8f'}else if(pA){l.textContent='PRO';m.style.color='#00ff88'}else{l.textContent='ASTRA OS';m.style.color='#0078D4'}document.getElementById('h-res').textContent=curRes.name}
+
+function initHolo(){var hm=document.getElementById('hm'),ch='0123456789';var n=Math.floor(hm.offsetWidth/8)||16;for(var c=0;c<n;c++){var col=document.createElement('div');col.className='hc';col.style.left=(c*8)+'px';var d=1.5+Math.random()*3;col.style.animationDuration=d+'s';col.style.animationDelay=(-Math.random()*d)+'s';var s='';for(var l=0;l<8;l++)s+='<span class="hd">'+ch[Math.floor(Math.random()*ch.length)]+'</span><br>';col.innerHTML=s;hm.appendChild(col)}}
+
+function printBanner(){o('   Astra Terminal v'+curVer,'asc');o('   UPDATE IS '+curVer,'urd');o('');o('Created by Franchuk Yaroslav','cre');o('');o('Welcome! System loaded.','ok');o('Type "help" for commands.','inf');o('New: firefox, qrcodeprank, RU/EN kb, sound','inf');o('ping=continuous, pingstop=abort','inf');o('');uht()}
+
+function openApp(title,html){var w=document.createElement('div');w.className='aw';w.style.left=(10+wc*20)+'px';w.style.top=(10+wc*18)+'px';wc++;w.innerHTML='<div class="ab"><span>'+title+'</span><button class="ax" onclick="this.closest(\'#al\').removeChild(this.closest(\'.aw\'))">X</button></div><div class="abd">'+html+'</div>';AL.appendChild(w);var b=w.querySelector('.ab'),ox=0,oy=0,dr=false;b.addEventListener('mousedown',function(e){if(e.target.classList.contains('ax'))return;dr=true;var r=w.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top});b.addEventListener('touchstart',function(e){if(e.target.classList.contains('ax'))return;dr=true;var r=w.getBoundingClientRect();var t=e.touches[0];ox=t.clientX-r.left;oy=t.clientY-r.top});addEventListener('mousemove',function(e){if(!dr)return;w.style.left=Math.max(0,e.clientX-ox)+'px';w.style.top=Math.max(0,e.clientY-oy)+'px'});addEventListener('touchmove',function(e){if(!dr)return;var t=e.touches[0];w.style.left=Math.max(0,t.clientX-ox)+'px';w.style.top=Math.max(0,t.clientY-oy)+'px'});addEventListener('mouseup',function(){dr=false});addEventListener('touchend',function(){dr=false});return w}
+
+/* KEYBOARD */
+function kbToggle(){var k=document.getElementById('kb');k.classList.toggle('on');if(k.classList.contains('on')){CI.focus();playClick()}}
+function kbToggleLang(){kbLang=kbLang==='ru'?'en':'ru';document.getElementById('kb-lang-btn').textContent=kbLang.toUpperCase();playClick();updateKbLabels()}
+function kbToggleSnd(){kbSndOn=!kbSndOn;document.getElementById('kb-snd-btn').style.opacity=kbSndOn?'1':'0.4';if(kbSndOn)playClick()}
+function updateKbLabels(){var r2=document.getElementById('kb-r2'),r3=document.getElementById('kb-r3'),r4=document.getElementById('kb-r4');if(!r2)return;var b2=r2.querySelectorAll('.kbk'),b3=r3.querySelectorAll('.kbk'),b4=r4.querySelectorAll('.kbk:not(.fn)');var l2=kbLang==='ru'?RU2:EN2,l3=kbLang==='ru'?RU3:EN3,l4=kbLang==='ru'?RU4:EN4;for(var i=0;i<b2.length&&i<l2.length;i++)b2[i].textContent=l2[i];for(var i=0;i<b3.length&&i<l3.length;i++)b3[i].textContent=l3[i];for(var i=0;i<b4.length&&i<l4.length;i++)b4[i].textContent=l4[i]}
+function kbKey(key){CI.focus();if(key==='Enter'){playEnter();snd();return}if(key==='Backspace'){playClick();var p=CI.selectionStart||CI.value.length;if(p>0){CI.value=CI.value.slice(0,p-1)+CI.value.slice(CI.selectionEnd);CI.setSelectionRange(p-1,p-1)}return}if(key==='Tab'){playClick();CI.value+='  ';return}if(key==='Esc'){playClick();CI.value='';return}if(key==='ArrowUp'){playClick();if(hist.length){hi=Math.max(0,hi-1);CI.value=hist[hi]}return}if(key==='ArrowDown'){playClick();if(hist.length){hi=Math.min(hist.length,hi+1);CI.value=hist[hi]||''}return}if(key==='ArrowLeft'){playClick();var p=Math.max(0,(CI.selectionStart||0)-1);CI.setSelectionRange(p,p);return}if(key==='ArrowRight'){playClick();var p=Math.min(CI.value.length,(CI.selectionStart||0)+1);CI.setSelectionRange(p,p);return}var ch=key;if(kbLang==='ru'&&RU_MAP[key])ch=RU_MAP[key];if(kbShiftOn){if(kbLang==='ru'&&RU_MAP[key.toUpperCase()])ch=RU_MAP[key.toUpperCase()];else ch=ch.toUpperCase();kbShiftOn=false;document.querySelectorAll('.kbk.fn').forEach(function(b){if(b.textContent==='SHIFT')b.style.background=''})}playClick();var pos=CI.selectionStart||CI.value.length;CI.value=CI.value.slice(0,pos)+ch+CI.value.slice(CI.selectionEnd);CI.setSelectionRange(pos+ch.length,pos+ch.length)}
+function kbShift(){kbShiftOn=!kbShiftOn;playClick();document.querySelectorAll('.kbk.fn').forEach(function(b){if(b.textContent==='SHIFT')b.style.background=kbShiftOn?'#0078D4':''})}
+
+/* QR */
+function appQR(title,data,sub,type){var w=openApp(title,'');var b=w.querySelector('.abd');b.style.height='300px';b.style.padding='0';var mc=vA?'#ff8800':aA?'#00ccff':eA?'#ff0033':mA?'#cc88ff':pA?'#00ff88':'#b388ff';var u='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data='+encodeURIComponent(data);b.innerHTML='<div class="qr-root" style="height:300px;background:'+mc+'1a;color:'+mc+'"><div class="qr-top" style="background:'+mc+'22;color:'+mc+'">'+title+'</div><div class="qr-body"><div class="qr-type" style="color:'+mc+'">'+type+'</div><div class="qr-img-box"><img src="'+u+'" style="width:180px;height:180px" alt="QR" onload="this.parentElement.previousElementSibling?this.parentElement.previousElementSibling.remove():null"></div><div class="qr-info" style="color:'+mc+'">'+sub+'</div></div></div>';var wt=document.createElement('div');wt.className='qr-wait';wt.textContent='Generating QR...';b.querySelector('.qr-body').insertBefore(wt,b.querySelector('.qr-img-box'))}
+CM.qrcodeprank=function(a){if(!a){o('Usage: qrcodeprank <text>','err');return}o('Generating prank QR...','qrm');appQR('QR Code - Prank',a,a,'PRANK');o('QR generated.','qrm')};
+
+/* FIREFOX */
+function appFirefox(url){var w=openApp('Astra Firefox','');var b=w.querySelector('.abd');b.style.height='380px';b.style.padding='0';var bm=FX_BM.map(function(x){return '<div class="fx-bm" onclick="fxNav(\''+x.u+'\')">'+x.n+'</div>'}).join('');b.innerHTML='<div class="fx-root" style="height:380px"><div class="fx-toolbar"><button class="fx-btn" onclick="fxBack()">&#8592;</button><button class="fx-btn" onclick="fxReload()">&#8635;</button><input type="text" class="fx-url" id="fx-url" placeholder="Search or enter URL..." value="'+(url||'')+'"><button class="fx-go" onclick="fxGo()">Go</button></div><div class="fx-bookmarks">'+bm+'</div><div class="fx-content" id="fx-content"><div class="fx-nopage"><div class="fx-logo">Firefox</div><div style="font-size:12px;color:#999;max-width:280px;line-height:1.6">Enter a URL or click a bookmark. Type "firefox &lt;url&gt;" in terminal.</div></div></div><div class="fx-status"><span id="fx-st">Ready</span><span style="margin-left:auto">Astra Firefox v2.5</span></div></div>';document.getElementById('fx-url').addEventListener('keydown',function(e){if(e.key==='Enter')fxGo()});document.getElementById('fx-url').addEventListener('mousedown',function(e){e.stopPropagation()});if(url)setTimeout(fxGo,200)}
+function fxGo(){var u=document.getElementById('fx-url');if(!u)return;var v=u.value.trim();if(!v)return;fxNav(v)}
+function fxNav(url){var u=document.getElementById('fx-url');if(u)u.value=url;var c=document.getElementById('fx-content');if(!c)return;var s=document.getElementById('fx-st');if(s)s.textContent='Loading...';if(!/^https?:\/\//.test(url)){if(/^[\w-]+(\.[\w-]+)+/.test(url))url='https://'+url;else url='https://www.google.com/search?q='+encodeURIComponent(url)}c.innerHTML='<iframe src="'+url+'" style="width:100%;height:100%;border:none" onload="document.getElementById(\'fx-st\').textContent=\'Done\'" onerror="document.getElementById(\'fx-st\').textContent=\'Error\'"></iframe>';if(s)setTimeout(function(){if(s.textContent==='Loading...')s.textContent='Done'},3000)}
+function fxReload(){var c=document.getElementById('fx-content');if(!c)return;var f=c.querySelector('iframe');if(f){f.src=f.src;document.getElementById('fx-st').textContent='Loading...'}}
+function fxBack(){var c=document.getElementById('fx-content');if(!c)return;var f=c.querySelector('iframe');if(f)try{f.contentWindow.history.back()}catch(e){}}
+
+/* MODES */
+function enterMode(n){var d={evil:{cls:'evilmod',bg:'EVIL MODE',pr:'[evil@dark ~]$',pc:'#ff0033',msg:'EVILMOD - ACTIVATED',mc:'err'},creator:{cls:'mod',bg:'CREATOR MODE',pr:'[creator@mod ~]$',pc:'#cc88ff',msg:'CREATORMODE - ACTIVATED',mc:'inf'},pro:{cls:'promod',bg:'PRO MODE',pr:'[pro@astra ~]$',pc:'#00ff88',msg:'PROMODE - ACTIVATED',mc:'ok'},code:{cls:'codemod',bg:'CODE MODE',pr:'[code@astra ~]$',pc:'#007acc',msg:'CODE MODE - ACTIVATED',mc:'cmp'},ai:{cls:'aimod',bg:'AI MODE',pr:'[ai@astra ~]$',pc:'#00ccff',msg:'AIMODE - ACTIVATED',mc:'aim'},vpn:{cls:'vpnmod',bg:'VPN MODE',pr:'[vpn@astra ~]$',pc:'#ff8800',msg:'VPNMODE - ACTIVATED',mc:'vpm'}}[n];if(!d)return;document.body.className=d.cls;document.getElementById('bg').textContent=d.bg;document.getElementById('pr').textContent=d.pr;document.getElementById('pr').style.color=d.pc;o('');o(d.msg,d.mc);o('');uht()}
+function exitMode(){document.body.className='';document.getElementById('bg').textContent='ASTRA TERMINAL';document.getElementById('pr').textContent='[astra@mobile ~]$';document.getElementById('pr').style.color='#fff';o('Mode deactivated.','wrn');uht()}
+
+/* COMMANDS */
+CM.help=function(){o('=== ASTRA TERMINAL ===','inf');o('FILES: ls cd cat echo mkdir rm tree','inf');o('SYSTEM: whoami date kill restart reboot uname neofetch','inf');o('NET: ifconfig ping pingstop ssh wget curl apt','inf');o('BROWSER: firefox ff','inf');o('QR: qrcodeprank','qrm');o('MODES: evilmod creatormode promode codemode aimode vpnmode','inf');o('MISC: clear exit help info color lang lc','inf');o('KB: LANG=RU/EN SND=sound','qrm');o('ping=continuous, pingstop=abort','wrn')};
+CM.ls=function(){o((files[cwd]||[]).join('  '))};
+CM.cd=function(a){if(!a||a==='~'||a==='..')cwd='~';else if(files['~'].indexOf(a)>=0)cwd='~';else o('cd: not found','err');document.getElementById('pr').textContent=mp()+cwd+']$'};
+CM.cat=function(a){var d={'README.txt':'Welcome to Astra Terminal!','config.cfg':'theme=blue'};if(d[a])o(d[a]);else o('cat: not found','err')};
+CM.echo=function(a){o(a)};
+CM.mkdir=function(a){if(!a){o('mkdir: name required','err');return}(files[cwd]=files[cwd]||[]).push(a);o('Created: '+a,'ok')};
+CM.rm=function(a){var f=files[cwd]||[],i=f.indexOf(a);if(i>-1){f.splice(i,1);o('Removed: '+a,'wrn')}else o('rm: not found','err')};
+CM.tree=function(){o('~');o('|-- Documents');o('|-- Downloads');o('|-- README.txt')};
+CM.whoami=function(){o(mod())};
+CM.date=function(){o(new Date().toLocaleString(lang==='ru'?'ru-RU':'en-US'))};
+CM.kill=function(){killed=true;if(PING_IV){clearInterval(PING_IV);PING_IV=null}uht();document.getElementById('bsod').classList.add('on');document.getElementById('main').style.display='none';var p=0;var iv=setInterval(function(){p+=Math.floor(Math.random()*8)+3;if(p>=100){p=100;clearInterval(iv)}document.getElementById('bp').textContent=p+'%'},400)};
+CM.uname=function(){o('Linux astra-mobile 6.1.0-astra')};
+CM.neofetch=function(){o('   Astra v'+curVer+' ('+mod()+')','asc');o('   Kernel: 6.1.0-astra','asc');o('   KB: '+kbLang.toUpperCase()+' Sound: '+(kbSndOn?'ON':'OFF'),'asc');o('   Browser: Firefox','asc');o('   Created: Franchuk Yaroslav','asc')};
+CM.ifconfig=function(){if(vpnConnected){o('tun0: inet '+VPNS.find(function(s){return s.name===vpnServer}).ip,'vpm');o('eth0: inet 192.168.1.42')}else{o('eth0: inet 192.168.1.42')}};
+CM.ping=function(a){if(!a){o('ping: host required','err');return}if(PING_IV){o('ping: already running. Use pingstop.','wrn');return}var ip=fip(a);o('PING '+a+' ('+ip+') - continuous. pingstop to abort.','inf');var seq=0;PING_IV=setInterval(function(){if(killed){clearInterval(PING_IV);PING_IV=null;return}o('Reply from '+ip+': seq='+seq+' time='+Math.floor(Math.random()*30+8)+'ms TTL=117');seq++},1000)};
+CM.pingstop=function(){if(!PING_IV){o('ping: not running.','wrn');return}clearInterval(PING_IV);PING_IV=null;o('ping: stopped.','ok')};
+CM.ssh=function(a){if(!a){o('ssh: host required','err');return}o('Connecting to '+a+'...','inf');setTimeout(function(){o('Connected.','ok')},800)};
+CM.wget=function(a){if(!a){o('wget: url required','err');return}o('Downloading '+a+' OK','ok')};
+CM.curl=function(a){if(!a){o('curl: url required','err');return}o('HTTP/1.1 200 OK')};
+CM.apt=function(a){if(!a){o('apt: package required','err');return}o(a+' installed','ok')};
+CM.firefox=function(a){appFirefox(a);o('Firefox launched'+(a?' - '+a:''),'ok')};
+CM.ff=function(a){CM.firefox(a)};
+CM.clear=function(){T.innerHTML=''};
+CM.restart=function(){if(PING_IV){clearInterval(PING_IV);PING_IV=null}o('Restarting...','wrn');setTimeout(function(){o('Goodbye!','ok');setTimeout(function(){location.reload()},400)},400)};
+CM.reboot=CM.restart;
+CM.lang=function(a){if(!a){o('Language: '+lang.toUpperCase(),'inf');return}a=a.toLowerCase();if(a==='ru'||a==='en'){lang=a;uht();o('Language: '+(a==='ru'?'Russian':'English')+'.','ok')}else o('Use: ru, en','err')};
+CM.exit=function(){o('logout','wrn');CI.disabled=true};
+CM.info=function(){o('UPDATE IS '+curVer,'urd');o('v2.5: firefox, QR, RU/EN kb, sound, ping','qrm');o('Created by Franchuk Yaroslav','cre')};
+CM.evilmod=function(a){if(a==='exit'&&eA){eA=false;exitMode();return}if(eA){o('Already active.','wrn');return}if(cA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}eA=true;enterMode('evil');o('hack/crack/inject/corrupt/scare','inf')};
+CM.creatormode=function(a){if(a==='exit'&&mA){mA=false;exitMode();return}if(mA){o('Already active.','wrn');return}if(cA||eA||pA||aA||vA){o('Exit current mode first.','wrn');return}mA=true;enterMode('creator');o('create/paint/theme/music','inf')};
+CM.promode=function(a){if(a==='exit'&&pA){pA=false;exitMode();return}if(pA){o('Already active.','wrn');return}if(cA||eA||mA||aA||vA){o('Exit current mode first.','wrn');return}pA=true;enterMode('pro');o('benchmark/optimize/analyze','inf')};
+CM.codemode=function(a){if(a==='exit'&&cA){cA=false;exitMode();return}if(cA){o('Already active.','wrn');return}if(eA||mA||pA||aA||vA){o('Exit current mode first.','wrn');return}cA=true;enterMode('code');o('code/vst','inf')};
+CM.aimode=function(a){if(a==='exit'&&aA){aA=false;exitMode();return}if(aA){o('Already active.','wrn');return}if(cA||eA||mA||pA||vA){o('Exit current mode first.','wrn');return}aA=true;enterMode('ai');o('ask/think/summarize/chat','inf')};
+CM.vpnmode=function(a){if(a==='exit'&&vA){if(vpnConnected){vpnConnected=false;vpnServer='none'}vA=false;exitMode();return}if(vA){o('Already active.','wrn');return}if(cA||eA||mA||pA||aA){o('Exit current mode first.','wrn');return}vA=true;enterMode('vpn');o('connect/disconnect/vpnstatus/servers','inf')};
+CM.hack=function(a){if(!eA){o('EvilMod required.','wrn');return}if(!a){o('hack: target required','err');return}o('[HACK] Targeting '+a+'...','err');var i=0,st=['Port scan','Exploiting CVE-2024-1337','Bypassing firewall','Injecting payload','Root access'];var iv=setInterval(function(){if(i>=st.length){clearInterval(iv);o('[HACK] '+a+' compromised!','err');return}o('[HACK] '+st[i],'err');i++},600)};
+CM.crack=function(a){if(!eA){o('EvilMod required.','wrn');return}if(!a){o('crack: hash required','err');return}o('[CRACK] Hash: '+a,'err');var r='';for(var i=0;i<8;i++)r+='abcdef0123456789'[Math.floor(Math.random()*16)];var p=0;var iv=setInterval(function(){p+=Math.floor(Math.random()*20+5);if(p>=100){p=100;clearInterval(iv);o('[CRACK] Password: '+r,'err');return}o('[CRACK] '+p+'%','err')},400)};
+CM.inject=function(){if(!eA){o('EvilMod required.','wrn');return}o('[INJECT] Injecting...','err');setTimeout(function(){o('[INJECT] Done!','err')},800)};
+CM.corrupt=function(){if(!eA){o('EvilMod required.','wrn');return}var g='X#%@&*!?<>{}';for(var i=0;i<5;i++){var l='';for(var j=0;j<35;j++)l+=g[Math.floor(Math.random()*g.length)];o(l,'err')}};
+CM.scare=function(){if(!eA){o('EvilMod required.','wrn');return}o('SYSTEM COMPROMISED','err');o('Just kidding! - EvilMod','err')};
+CM.create=function(a){if(!mA){o('CreatorMode required.','wrn');return}if(!a){o('create: name required','err');return}(files[cwd]=files[cwd]||[]).push(a);o('Created: '+a,'ok')};
+CM.paint=function(){if(!mA){o('CreatorMode required.','wrn');return}var w=openApp('Paint','');var b=w.querySelector('.abd');b.style.height='280px';b.innerHTML='<canvas id="pc" style="width:100%;height:100%;background:#000;cursor:crosshair"></canvas>';var cv=document.getElementById('pc');cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;var ctx=cv.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);window._pc='#cc88ff';cv.onmousedown=function(e){window._pd=true;paintMv(e)};cv.onmouseup=function(){window._pd=false};cv.onmousemove=paintMv;cv.ontouchstart=function(e){window._pd=true;paintMv(e)};cv.ontouchend=function(){window._pd=false};cv.ontouchmove=paintMv;function paintMv(e){if(!window._pd)return;var r=cv.getBoundingClientRect();var x,y;if(e.touches){x=e.touches[0].clientX-r.left;y=e.touches[0].clientY-r.top}else{x=e.clientX-r.left;y=e.clientY-r.top}ctx.fillStyle=window._pc;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill()}o('Paint launched.','ok')};
+CM.theme=function(a){if(!mA){o('CreatorMode required.','wrn');return}var t={'dark':'#0a0a1a','light':'#fff','purple':'#1a0033','green':'#001a0a'};if(!t[a]){o('theme: unknown','err');return}document.body.style.background=t[a];o('Theme: '+a,'ok')};
+CM.music=function(){if(!mA){o('CreatorMode required.','wrn');return}o('Beat Maker launched.','ok')};
+CM.benchmark=function(){if(!pA){o('ProMode required.','wrn');return}o('[BENCH] Running...','ok');var t=['CPU','Memory','Disk','GPU'];var i=0;var iv=setInterval(function(){if(i>=t.length){clearInterval(iv);o('BENCHMARK COMPLETE','ok');o('Score: 12,847 pts','ok');return}o('[BENCH] '+t[i]+': '+Math.floor(Math.random()*3000+1000)+' pts','ok');i++},500)};
+CM.optimize=function(){if(!pA){o('ProMode required.','wrn');return}o('[OPT] +15% performance','ok')};
+CM.analyze=function(){if(!pA){o('ProMode required.','wrn');return}o('[ANALYZE] CPU:85% Mem:93% Disk:78%','ok')};
+CM.ask=function(a){if(!aA){o('AI Mode required.','wrn');return}if(!a){o('ask: question required','err');return}o('[YOU] '+a,'inf');o('[AI] Thinking...','aim');setTimeout(function(){var r=AI.default;for(var k in AI){if(a.toLowerCase().indexOf(k)>=0){r=AI[k];break}}o('[AI] '+r,'aim')},800)};
+CM.think=function(a){if(!aA){o('AI Mode required.','wrn');return}o('[AI] '+a+'...','aim');setTimeout(function(){o('[AI] Processing complete.','aim')},800)};
+CM.summarize=function(a){if(!aA){o('AI Mode required.','wrn');return}o('[AI] Summary: '+(a||'')+'...','aim')};
+CM.chat=function(){if(!aA){o('AI Mode required.','wrn');return}o('AI Chat opened.','aim')};
+CM.connect=function(a){if(!vA){o('VPN Mode required.','wrn');return}var s=VPNS.find(function(x){return x.name.toLowerCase()===a.toLowerCase()||x.code.toLowerCase()===a.toLowerCase()});if(!s){o('Server not found: '+a,'err');return}o('[VPN] Connecting to '+s.name+'...','vpm');setTimeout(function(){vpnConnected=true;vpnServer=s.name;vpnPing=s.ping;o('[VPN] Connected! IP: '+s.ip,'vpm')},1000)};
+CM.disconnect=function(){if(!vA){o('VPN Mode required.','wrn');return}vpnConnected=false;vpnServer='none';o('[VPN] Disconnected.','wrn')};
+CM.vpnstatus=function(){if(!vA){o('VPN Mode required.','wrn');return}if(vpnConnected){o('[VPN] CONNECTED to '+vpnServer+' ('+vpnPing+'ms)','vpm')}else{o('[VPN] DISCONNECTED','err')}};
+CM.servers=function(){if(!vA){o('VPN Mode required.','wrn');return}VPNS.forEach(function(s){o('['+s.code+'] '+s.name+' - '+s.ping+'ms','vpm')})};
+CM.lc=function(a){if(!a){RES.forEach(function(r){o('  '+r.id+' '+r.name+' '+r.w+'x'+r.ratio,'tbl')});o('Current: '+curRes.name,'tbl-s');o('Usage: lc <ID> or lc auto','tbl');return}if(a==='auto'){curRes={id:0,name:'AUTO',w:0,h:0,ratio:'auto'};document.getElementById('main').classList.remove('res-active');uht();o('Resolution: AUTO','ok');return}var r=RES.find(function(x){return x.id===parseInt(a)});if(!r){o('Invalid ID','err');return}curRes=r;var m=document.getElementById('main');m.classList.add('res-active');m.style.maxWidth=r.w+'px';m.style.maxHeight=r.h+'px';uht();o('Resolution: '+r.name+' ('+r.w+'x'+r.h+')','ok')};
+CM.color=function(a){if(!a){document.body.style.background='';document.body.style.color='';o('Colors reset','ok');return}var wc={'0':'#000','1':'#00f','2':'#0f0','3':'#0ff','4':'#f00','5':'#f0f','6':'#ff0','7':'#fff','8':'#888','9':'#008','A':'#080','B':'#088','C':'#800','D':'#808','E':'#880','F':'#fff'};if(wc[a[0]]&&wc[a[1]]){document.body.style.background=wc[a[0]];document.body.style.color=wc[a[1]];o('Colors set','ok')}else o('Invalid. Use 0-F','err')};
+
+function doUpdate(f){if(!f.files||!f.files.length){o('No file selected.','wrn');return}var fn=f.files[0].name;o('Updating from: '+fn,'urd');setTimeout(function(){o('UPDATE COMPLETE!','ok');o(curVer+' -> 2.6','ok');o('Restart to apply.','wrn');f.value=''},2500)}
+
+function snd(){var v=CI.value.trim();if(killed)return;if(!v){o(mp()+cwd+']$');return}hist.push(v);hi=hist.length;o(mp()+cwd+']$ '+v);playEnter();var p=v.split(/\s+/),c=p[0].toLowerCase(),arg=p.slice(1).join(' ');if(CM[c])CM[c](arg);else o(mod()+': '+c+': not found. Type "help".','err');CI.value=''}
+
+document.addEventListener('click',function(e){if(!CI)return;if(e.target.closest('.aw'))return;if(e.target.closest('#kb'))return;if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='BUTTON')return;if(CI&&!CI.disabled&&document.getElementById('main').style.display==='flex'){CI.focus();var kb=document.getElementById('kb');if(!kb.classList.contains('on'))kbToggle()}});
+</script>
+</body>
+</html>
